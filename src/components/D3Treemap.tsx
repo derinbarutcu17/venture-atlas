@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import * as d3 from 'd3';
+import gsap from 'gsap';
 import type { Startup } from '../types';
 import { transformStartupsToHierarchy, type TreemapNode } from '../data/transformer';
 
@@ -61,9 +62,29 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
     // currentRoot tracks the currently active node defining the layout bounds
     const [currentRoot, setCurrentRoot] = useState<d3.HierarchyRectangularNode<TreemapNode>>(root);
 
+    // GSAP Animated Viewport State
+    const viewportRef = useRef({ x0: root.x0, x1: root.x1, y0: root.y0, y1: root.y1 });
+    const [viewport, setViewport] = useState({ x0: root.x0, x1: root.x1, y0: root.y0, y1: root.y1 });
+
+    useEffect(() => {
+        gsap.killTweensOf(viewportRef.current);
+        gsap.to(viewportRef.current, {
+            x0: currentRoot.x0,
+            x1: currentRoot.x1,
+            y0: currentRoot.y0,
+            y1: currentRoot.y1,
+            duration: 0.8,
+            ease: "power3.inOut",
+            onUpdate: function () {
+                // Synchronously update React state so width, height, and transform render together flawlessly
+                setViewport({ ...viewportRef.current });
+            }
+        });
+    }, [currentRoot]);
+
     // D3 Scales mapped to the currentRoot's physical layout bounds
-    const dx = useMemo(() => d3.scaleLinear().domain([currentRoot.x0, currentRoot.x1]).range([0, VIEWBOX_W]), [currentRoot]);
-    const dy = useMemo(() => d3.scaleLinear().domain([currentRoot.y0, currentRoot.y1]).range([0, VIEWBOX_H]), [currentRoot]);
+    const dx = useMemo(() => d3.scaleLinear().domain([viewport.x0, viewport.x1]).range([0, VIEWBOX_W]), [viewport]);
+    const dy = useMemo(() => d3.scaleLinear().domain([viewport.y0, viewport.y1]).range([0, VIEWBOX_H]), [viewport]);
 
     const colorScale = useMemo(() => {
         const sectors = fullHierarchy.children?.map(d => d.name) || [];
@@ -139,7 +160,6 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                     return (
                         <g
                             key={nodeId}
-                            className="transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
                             style={{
                                 transform: `translate(${x0}px, ${y0}px)`,
                                 opacity: isVisible ? 1 : 0
@@ -165,7 +185,6 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                 fill={fill}
                                 stroke="rgba(0,0,0,0.1)"
                                 strokeWidth={isHovered ? 2 : 1}
-                                className="transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
                                 rx={2}
                             />
 
@@ -174,7 +193,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                 <foreignObject
                                     width={Math.max(0, w)}
                                     height={Math.max(0, h)}
-                                    className="pointer-events-none transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                                    className="pointer-events-none"
                                 >
                                     {/* HTML Container for Text */}
                                     <div
