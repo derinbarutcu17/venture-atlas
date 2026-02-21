@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import type { Startup } from '../types';
 import { D3Treemap } from './D3Treemap';
+import { ParadigmTreemap } from './ParadigmTreemap';
 import { MouseOverlay } from './MouseOverlay';
 import { CompaniesView } from './CompaniesView';
 import { InvestorsView } from './InvestorsView';
 import { supabase } from '../lib/supabaseClient';
 import { startupsMaster } from '../data/startups_master';
-import { transformStartupsToHierarchy } from '../data/transformer';
 
 export const Dashboard: React.FC = () => {
     // ---- STATE ----
     const [view, setView] = useState<'ecosystem' | 'companies' | 'investors'>('ecosystem');
+    const [mapStyle, setMapStyle] = useState<'standard' | 'paradigm'>('paradigm');
     const [searchTerm, setSearchTerm] = useState('');
     const [hoveredData, setHoveredData] = useState<{ startup: Startup | null; isCategory: boolean; categoryName?: string }>({
         startup: null,
@@ -84,8 +85,6 @@ export const Dashboard: React.FC = () => {
         return filteredStartups.reduce((acc, s) => acc + s.funding, 0);
     }, [filteredStartups]);
 
-    const fullHierarchy = useMemo(() => transformStartupsToHierarchy(filteredStartups), [filteredStartups]);
-
     return (
         <div className="h-screen w-screen bg-white text-black transition-colors duration-300 overflow-hidden flex flex-col font-mono selection:bg-black selection:text-white">
             {/* Header / Nav - Simplified No Black Bars */}
@@ -101,7 +100,11 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="flex items-center space-x-10 text-xs font-bold uppercase tracking-widest text-neutral-mid">
-                    <button onClick={() => setView('ecosystem')} className={`hover:text-black transition-all ${view === 'ecosystem' ? 'text-black underline underline-offset-8 decoration-2' : ''}`}>Ecosystem</button>
+                    <div className="flex items-center space-x-4 mr-6 border-r border-black/10 pr-10">
+                        <button onClick={() => setView('ecosystem')} className={`hover:text-black transition-all ${view === 'ecosystem' && mapStyle === 'standard' ? 'text-black underline underline-offset-8 decoration-2' : ''}`}>Ecosystem (Standard)</button>
+                        <button onClick={() => { setView('ecosystem'); setMapStyle('paradigm'); }} className={`hover:text-black transition-all ${view === 'ecosystem' && mapStyle === 'paradigm' ? 'text-black underline underline-offset-8 decoration-2' : ''}`}>Ecosystem (Paradigm)</button>
+                    </div>
+
                     <button onClick={() => setView('companies')} className={`hover:text-black transition-all ${view === 'companies' ? 'text-black underline underline-offset-8 decoration-2' : ''}`}>Companies</button>
                     <button onClick={() => setView('investors')} className={`hover:text-black transition-all ${view === 'investors' ? 'text-black underline underline-offset-8 decoration-2' : ''}`}>Investors</button>
 
@@ -131,11 +134,17 @@ export const Dashboard: React.FC = () => {
                     <div className="w-full h-full p-8 bg-[#F8F9FA]">
                         {view === 'ecosystem' && (
                             <div className="w-full h-full overflow-hidden bg-white shadow-[0_0_40px_rgba(0,0,0,0.03)] rounded-xl relative">
-                                <D3Treemap
-                                    data={fullHierarchy}
-                                    startups={filteredStartups}
-                                    onStartupHover={(s: Startup | null, isCat?: boolean, name?: string) => setHoveredData({ startup: s, isCategory: !!isCat, categoryName: name })}
-                                />
+                                {mapStyle === 'standard' ? (
+                                    <D3Treemap
+                                        startups={filteredStartups}
+                                        onStartupHover={(s: Startup | null, isCat?: boolean, name?: string) => setHoveredData({ startup: s, isCategory: !!isCat, categoryName: name })}
+                                    />
+                                ) : (
+                                    <ParadigmTreemap
+                                        startups={filteredStartups}
+                                        onStartupHover={(s: Startup | null, isCat?: boolean, name?: string) => setHoveredData({ startup: s, isCategory: !!isCat, categoryName: name })}
+                                    />
+                                )}
                             </div>
                         )}
 
