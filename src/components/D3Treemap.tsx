@@ -240,17 +240,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                             </div>
                                         )}
 
-                                        {/* Internal Click Target hint for categories */}
-                                        {!isLeaf && w > 100 && h > 80 && activeNode !== node && isHovered && (
-                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
-                                                <span className="material-symbols-outlined text-[12px]">zoom_in</span> Zoom
-                                            </div>
-                                        )}
-                                        {!isLeaf && w > 100 && activeNode === node && isHovered && activeNode.parent && (
-                                            <div className="absolute top-2 right-2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
-                                                <span className="material-symbols-outlined text-[12px]">zoom_out</span> Back
-                                            </div>
-                                        )}
+
                                     </div>
                                 </foreignObject>
                             )}
