@@ -83,39 +83,19 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
         setCurrentRoot(node);
     }, []);
 
-    const zoomOut = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (currentRoot.parent) {
-            zoomTo(currentRoot.parent);
-        }
-    }, [currentRoot, zoomTo]);
-
     const handleNodeClick = useCallback((e: React.MouseEvent, node: d3.HierarchyRectangularNode<TreemapNode>) => {
         e.stopPropagation();
-        // Only zoom if the node has children
-        if (node.children && node.children.length > 0) {
-            zoomTo(node);
-        } else if (node === currentRoot && currentRoot.parent) {
-            // Clicking the active leaf node zooms out
+        if (node === currentRoot && currentRoot.parent) {
+            // Clicking the active root's header zooms out to its parent
             zoomTo(currentRoot.parent);
+        } else if (node.children && node.children.length > 0) {
+            // Clicking a child category zooms into it
+            zoomTo(node);
         }
     }, [currentRoot, zoomTo]);
 
     return (
         <div ref={containerRef} className="w-full h-full bg-white overflow-hidden relative font-mono">
-            {/* IN-MAP NAVIGATION OVERLAY */}
-            <div className="absolute top-0 left-0 right-0 z-20 flex px-4 py-2 pointer-events-none items-center">
-                {currentRoot.depth > 0 && (
-                    <button
-                        onClick={zoomOut}
-                        className="pointer-events-auto flex items-center gap-2 bg-black/80 hover:bg-black text-white px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-widest transition-colors shadow-lg backdrop-blur-md"
-                    >
-                        <span className="material-symbols-outlined text-sm">arrow_back</span>
-                        Back to {currentRoot.parent?.data.name || 'All'}
-                    </button>
-                )}
-            </div>
-
             <svg
                 ref={svgRef}
                 width="100%"
@@ -227,6 +207,11 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                         {!isLeaf && w > 100 && h > 80 && currentRoot !== node && isHovered && (
                                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
                                                 <span className="material-symbols-outlined text-[12px]">zoom_in</span> Zoom
+                                            </div>
+                                        )}
+                                        {!isLeaf && w > 100 && currentRoot === node && isHovered && currentRoot.parent && (
+                                            <div className="absolute top-2 right-2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
+                                                <span className="material-symbols-outlined text-[12px]">zoom_out</span> Back
                                             </div>
                                         )}
                                     </div>
