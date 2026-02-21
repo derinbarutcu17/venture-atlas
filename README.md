@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# Venture Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Venture Atlas** is a highly interactive, fluid D3.js and React-based data visualization platform. It explores and maps out corporate and startup ecosystems into beautifully ordered hierarchical treemaps.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Fluid Zooming:** Smooth, GSAP-powered spatial continuous zooming scaling seamlessly through infinite hierarchical levels without browser rendering distortion.
+- **Paradigm-Style Typography:** A rigorously built custom D3 padding mapping system ensures text is never squished, wrapped incorrectly, or artificially forced out of frame. 
+   - Metadata and Category tags are rendered with explicitly constrained `font-mono`, uppercase muted colors, snapping flush to their designated allocation space.
+   - Companies are aggressively presented as data payload, anchoring securely with dense, high-contrast, `font-sans` weights.
+- **Ecosystem Rendering:** Supports categorizing data by overarching standard ecosystem sectors (e.g. Fintech, Healthcare), isolating nested verticals, and visualizing their raw monetary impacts geographically.
+- **Physical Bounding Math:** The treemap avoids D3's typical "absolute dimension locking" flaw during continuous zoom states. It intercepts abstract layouts dynamically and restricts headers via customized React recursive math—capping structural layers to `15%` maximum footprint so data payload (the companies) dominantly scales at up to 500x magnification without clipping.
+- **Hover Overlays:** Rich framer-motion powered follow-mouse hovering tooltips instantly inject complete data profiles of companies onto the viewport smoothly.
 
-## React Compiler
+## Technologies Used
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React / Vite**: Core rendering framework.
+- **D3.js**: Calculates squarified treemap hierarchies and scale domains dynamically based on value inputs (e.g., millions of euros).
+- **GSAP**: Executes multi-threaded matrix transforms (`tween()`) across the component lifecycle for 60fps zooming without causing expensive HTML layout repaints.
+- **Tailwind CSS**: Strict, atomic functional design styling defining the physical typography matrices and border layouts.
+- **Framer Motion**: Orchestrates organic, mass/spring fluid layout changes and tooltip interpolations.
 
-## Expanding the ESLint configuration
+## Running Locally
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+To start the platform up via the development server:
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+To build for an optimized static production release:
+```bash
+npm run build
 ```
