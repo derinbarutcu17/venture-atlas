@@ -151,13 +151,13 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                     const w = x1 - x0;
                     const h = y1 - y0;
 
-                    // Calculate the designated header height strictly driven by D3's assigned padding.
-                    // If leaf node, it's 0. If parent, it's the physical diff between parent.y0 and its first child's.y0
-                    const layoutHeaderH = node.children ? Math.max(0, node.children[0].y0 - node.y0) : 0;
-                    const pixelHeaderH = dy(node.y0 + layoutHeaderH) - dy(node.y0);
-
                     // If a node goes completely off-viewport or is inverted during transitions
                     const isVisible = w > 0 && h > 0 && x1 > 0 && x0 < dimensions.w && y1 > 0 && y0 < dimensions.h;
+
+                    // STRICT RULE 1: Header bounds. A category header can NEVER take up more than 15% of the total box, with a hard maximum of 28px.
+                    // This perfectly resolves the e-commerce padding double-stack bug by ignoring deep tree physics entirely and applying a pure geometric visual ratio.
+                    const maxAllowedHeaderHeight = Math.min(28, h * 0.15);
+                    const safeHeaderH = isLeaf ? 0 : Math.max(0, maxAllowedHeaderHeight);
 
                     // Dynamic colors
                     let sectorNode = node;
@@ -172,9 +172,6 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
                     // Skip perfectly invisible nodes
                     if (!isVisible && activeNode !== node) return null;
-
-                    // Validate that the rendered header actually makes sense physically before drawing it to prevent bleeding out of its container
-                    const safeHeaderH = Math.min(Math.max(0, pixelHeaderH), h);
 
                     return (
                         <g
@@ -208,42 +205,44 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                             />
 
                             {/* TEXT RENDERING via foreignObject - Free from viewBox stretching constraints */}
-                            {w > 30 && h > 15 && (
+                            {w > 15 && h > 10 && (
                                 <foreignObject
                                     width={Math.max(0, w)}
-                                    // Binds height solely to the header constraint if it's a parent to prevent disappearing behind children
+                                    // STRICT RULE: Height is absolutely clamped to either the entire container (for leaf node data) or just the isolated structural bounds (for headers).
                                     height={isLeaf ? Math.max(0, h) : Math.max(0, safeHeaderH)}
                                     className="pointer-events-none"
                                 >
                                     {/* HTML Container for Text */}
                                     <div
+                                        // STRICT RULE 2: Standardized left alignment for everything. All boxes act as normalized lists.
                                         className={`w-full h-full flex flex-col box-border overflow-hidden 
-                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start items-start' : 'px-4 justify-center items-center text-center'}`}
+                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start items-start' : 'px-1.5 sm:px-2 justify-center items-start'}`}
                                         style={{ color: textColor }}
                                     >
                                         <div
-                                            className={`font-black break-words leading-none w-full
-                                                ${!isLeaf ? 'uppercase tracking-wider opacity-100' : 'opacity-90'}
+                                            // STRICT RULE 3: Typography Hierarchy explicitly separating Header metadata vs Startup Anchors.
+                                            className={`font-black tracking-tight leading-none w-full truncate
+                                                ${!isLeaf ? 'font-mono uppercase opacity-50' : 'font-sans opacity-95'}
                                             `}
                                             style={{
+                                                // STRICT RULE 4: No microscopic compression physics.
+                                                // If available width implies <8px to render correctly, the css truncate logic simply clips with an ellipsis or hiding it.
                                                 fontSize: isLeaf
-                                                    ? Math.max(9, Math.min(16, w * 0.08, h * 0.15)) + 'px'
-                                                    : Math.max(10, Math.min(32, w * 0.05, safeHeaderH * 0.4)) + 'px',
+                                                    ? Math.max(9, Math.min(18, w * 0.1, h * 0.15)) + 'px'
+                                                    : Math.max(8, Math.min(14, w * 0.05, safeHeaderH * 0.6)) + 'px',
                                             }}
                                         >
                                             {node.data.name}
                                         </div>
 
-                                        {isLeaf && w > 60 && h > 40 && (
+                                        {isLeaf && w > 45 && h > 35 && (
                                             <div
-                                                className="font-bold opacity-50 italic mt-1 text-left w-full"
-                                                style={{ fontSize: Math.max(8, Math.min(12, w * 0.06, h * 0.1)) + 'px' }}
+                                                className="font-bold opacity-60 font-mono tracking-wider mt-1 text-left w-full truncate"
+                                                style={{ fontSize: Math.max(8, Math.min(11, w * 0.08, h * 0.08)) + 'px' }}
                                             >
                                                 {formatValue(node.data.value)}
                                             </div>
                                         )}
-
-
                                     </div>
                                 </foreignObject>
                             )}
