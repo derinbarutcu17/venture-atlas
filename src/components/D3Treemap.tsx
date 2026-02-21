@@ -4,12 +4,6 @@ import gsap from 'gsap';
 import type { Startup } from '../types';
 import { transformStartupsToHierarchy, type TreemapNode } from '../data/transformer';
 
-// ─── CONFIG ─────────────────────────────────────────────────────
-// The internal coordinate system dimensions for the layout.
-// The SVG itself will be 100% width/height of its parent.
-const VIEWBOX_W = 1600;
-const VIEWBOX_H = 1000;
-
 interface D3TreemapProps {
     startups: Startup[];
     onStartupHover: (s: Startup | null, isCategory?: boolean, categoryName?: string) => void;
@@ -37,6 +31,21 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
+    // Dynamic physical dimensions to prevent stretching text through SVG viewBox
+    const [dimensions, setDimensions] = useState({ w: 1600, h: 1000 });
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const resizeObserver = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            if (width > 0 && height > 0) {
+                setDimensions({ w: width, h: height });
+            }
+        });
+        resizeObserver.observe(containerRef.current);
+        return () => resizeObserver.disconnect();
+    }, []);
+
     const fullHierarchy = useMemo(() => transformStartupsToHierarchy(startups), [startups]);
 
     const root = useMemo(() => {
@@ -45,7 +54,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
             .sort((a, b) => (b.value || 0) - (a.value || 0));
 
         const treemapLayout = d3.treemap<TreemapNode>()
-            .size([VIEWBOX_W, VIEWBOX_H])
+            .size([dimensions.w, dimensions.h])
             .paddingInner(0)
             .paddingOuter(0)
             .paddingTop(node => (node.depth === 1 ? 40 : node.depth === 2 ? 30 : 0))
@@ -54,25 +63,29 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
         treemapLayout(h);
         return h as d3.HierarchyRectangularNode<TreemapNode>;
-    }, [fullHierarchy]);
+    }, [fullHierarchy, dimensions]);
 
     const allNodes = useMemo(() => root.descendants(), [root]);
 
     // ─── STATE: ZOOM NAVIGATION ────────────────────────────────────
-    // currentRoot tracks the currently active node defining the layout bounds
-    const [currentRoot, setCurrentRoot] = useState<d3.HierarchyRectangularNode<TreemapNode>>(root);
+    const [zoomPathId, setZoomPathId] = useState<string | null>(null);
+
+    const activeNode = useMemo(() => {
+        if (!zoomPathId) return root;
+        return allNodes.find(n => (n.data.id || n.data.name) === zoomPathId) || root;
+    }, [allNodes, zoomPathId, root]);
 
     // GSAP Animated Viewport State
-    const viewportRef = useRef({ x0: root.x0, x1: root.x1, y0: root.y0, y1: root.y1 });
-    const [viewport, setViewport] = useState({ x0: root.x0, x1: root.x1, y0: root.y0, y1: root.y1 });
+    const viewportRef = useRef({ x0: 0, x1: 1600, y0: 0, y1: 1000 });
+    const [viewport, setViewport] = useState({ x0: 0, x1: 1600, y0: 0, y1: 1000 });
 
     useEffect(() => {
         gsap.killTweensOf(viewportRef.current);
         gsap.to(viewportRef.current, {
-            x0: currentRoot.x0,
-            x1: currentRoot.x1,
-            y0: currentRoot.y0,
-            y1: currentRoot.y1,
+            x0: activeNode.x0,
+            x1: activeNode.x1,
+            y0: activeNode.y0,
+            y1: activeNode.y1,
             duration: 0.8,
             ease: "power3.inOut",
             onUpdate: function () {
@@ -80,11 +93,11 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                 setViewport({ ...viewportRef.current });
             }
         });
-    }, [currentRoot]);
+    }, [activeNode, dimensions]);
 
-    // D3 Scales mapped to the currentRoot's physical layout bounds
-    const dx = useMemo(() => d3.scaleLinear().domain([viewport.x0, viewport.x1]).range([0, VIEWBOX_W]), [viewport]);
-    const dy = useMemo(() => d3.scaleLinear().domain([viewport.y0, viewport.y1]).range([0, VIEWBOX_H]), [viewport]);
+    // D3 Scales mapped to exactly the physical layout frame boundaries
+    const dx = useMemo(() => d3.scaleLinear().domain([viewport.x0, viewport.x1]).range([0, dimensions.w]), [viewport, dimensions]);
+    const dy = useMemo(() => d3.scaleLinear().domain([viewport.y0, viewport.y1]).range([0, dimensions.h]), [viewport, dimensions]);
 
     const colorScale = useMemo(() => {
         const sectors = fullHierarchy.children?.map(d => d.name) || [];
@@ -100,20 +113,20 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
     };
 
     // ─── INTERACTION ────────────────────────────────────────────────
-    const zoomTo = useCallback((node: d3.HierarchyRectangularNode<TreemapNode>) => {
-        setCurrentRoot(node);
+    const zoomTo = useCallback((nodeId: string | null) => {
+        setZoomPathId(nodeId);
     }, []);
 
     const handleNodeClick = useCallback((e: React.MouseEvent, node: d3.HierarchyRectangularNode<TreemapNode>) => {
         e.stopPropagation();
-        if (node === currentRoot && currentRoot.parent) {
+        if (node === activeNode && activeNode.parent) {
             // Clicking the active root's header zooms out to its parent
-            zoomTo(currentRoot.parent);
+            zoomTo(activeNode.parent.data.id || activeNode.parent.data.name);
         } else if (node.children && node.children.length > 0) {
             // Clicking a child category zooms into it
-            zoomTo(node);
+            zoomTo(node.data.id || node.data.name);
         }
-    }, [currentRoot, zoomTo]);
+    }, [activeNode, zoomTo]);
 
     return (
         <div ref={containerRef} className="w-full h-full bg-white overflow-hidden relative font-mono">
@@ -121,8 +134,6 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                 ref={svgRef}
                 width="100%"
                 height="100%"
-                viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
-                preserveAspectRatio="none"
                 className="w-full h-full block cursor-crosshair select-none"
             >
                 {allNodes.map((node) => {
@@ -132,7 +143,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                     const isLeaf = !node.children || node.children.length === 0;
                     const nodeId = node.data.id || node.data.name;
 
-                    // Compute target coordinates based on the current scale
+                    // Compute target physical coordinates
                     const x0 = dx(node.x0);
                     const x1 = dx(node.x1);
                     const y0 = dy(node.y0);
@@ -141,7 +152,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                     const h = y1 - y0;
 
                     // If a node goes completely off-viewport or is inverted during transitions
-                    const isVisible = w > 0 && h > 0 && x1 > 0 && x0 < VIEWBOX_W && y1 > 0 && y0 < VIEWBOX_H;
+                    const isVisible = w > 0 && h > 0 && x1 > 0 && x0 < dimensions.w && y1 > 0 && y0 < dimensions.h;
 
                     // Dynamic colors
                     let sectorNode = node;
@@ -154,8 +165,8 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
                     const textColor = getContrastColor(fill);
 
-                    // Skip rendering nodes perfectly invisible
-                    if (!isVisible && currentRoot !== node) return null;
+                    // Skip perfectly invisible nodes
+                    if (!isVisible && activeNode !== node) return null;
 
                     return (
                         <g
@@ -188,7 +199,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                 rx={2}
                             />
 
-                            {/* TEXT RENDERING via foreignObject */}
+                            {/* TEXT RENDERING via foreignObject - Free from viewBox stretching constraints */}
                             {w > 30 && h > 15 && (
                                 <foreignObject
                                     width={Math.max(0, w)}
@@ -198,16 +209,15 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                     {/* HTML Container for Text */}
                                     <div
                                         className={`w-full h-full flex flex-col box-border overflow-hidden 
-                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start' : 'p-2 justify-start'}`}
+                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start items-start' : 'p-2 justify-center items-center text-center'}`}
                                         style={{ color: textColor }}
                                     >
                                         <div
                                             className={`font-black break-words leading-none w-full
-                                                ${!isLeaf ? 'uppercase tracking-wider opacity-60 mb-1 border-b' : 'opacity-90'}
+                                                ${!isLeaf ? 'uppercase tracking-wider opacity-90' : 'opacity-90'}
                                             `}
                                             style={{
-                                                fontSize: isLeaf ? (w > 100 && h > 50 ? '14px' : '10px') : (w > 150 ? '16px' : '12px'),
-                                                borderColor: `${textColor}33` // 20% opacity border
+                                                fontSize: isLeaf ? (w > 100 && h > 50 ? '14px' : '10px') : Math.max(12, Math.min(32, w * 0.1)) + 'px',
                                             }}
                                         >
                                             {node.data.name}
@@ -215,7 +225,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
                                         {isLeaf && w > 60 && h > 40 && (
                                             <div
-                                                className="font-bold opacity-50 italic mt-1"
+                                                className="font-bold opacity-50 italic mt-1 text-left w-full"
                                                 style={{ fontSize: w > 100 ? '11px' : '9px' }}
                                             >
                                                 {formatValue(node.data.value)}
@@ -223,12 +233,12 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                         )}
 
                                         {/* Internal Click Target hint for categories */}
-                                        {!isLeaf && w > 100 && h > 80 && currentRoot !== node && isHovered && (
+                                        {!isLeaf && w > 100 && h > 80 && activeNode !== node && isHovered && (
                                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
                                                 <span className="material-symbols-outlined text-[12px]">zoom_in</span> Zoom
                                             </div>
                                         )}
-                                        {!isLeaf && w > 100 && currentRoot === node && isHovered && currentRoot.parent && (
+                                        {!isLeaf && w > 100 && activeNode === node && isHovered && activeNode.parent && (
                                             <div className="absolute top-2 right-2 bg-black/10 backdrop-blur-sm text-black px-2 py-1 rounded text-[10px] uppercase font-bold tracking-widest items-center gap-1 flex pointer-events-none border border-black/20">
                                                 <span className="material-symbols-outlined text-[12px]">zoom_out</span> Back
                                             </div>
