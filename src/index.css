@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-violet: #5B21B6;
+    --pastel-blue: #eef2ff;
+    --pastel-green: #f0fdf4;
+    --pastel-pink: #fdf2f8;
+    --pastel-yellow: #fefce8;
+    --pastel-violet: #f5f3ff;
+    --pastel-orange: #fff7ed;
+    --pastel-cyan: #ecfeff;
+    --pastel-grey: #f9fafb;
+  }
+
+  body {
+    @apply font-mono bg-white text-neutral-dark min-h-screen;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .dark body {
+    @apply bg-neutral-dark text-white;
+    /* Handle dark mode body manually or via classes */
+  }
+}
+
+@layer components {
+  .mono-data {
+    @apply font-mono tracking-tighter;
+  }
+
+  .treemap-node {
+    @apply border border-neutral-dark/10 bg-white;
+    transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Dark mode node overrides if needed later */
+
+  .treemap-node:hover {
+    @apply border-violet-accent text-violet-accent z-10;
+  }
+
+  .selected-node {
+    @apply ring-1 ring-violet-accent ring-offset-4 border-violet-accent bg-white z-20;
+  }
+
+  .brutalist-button {
+    @apply border border-neutral-dark px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors;
+  }
+
+  .brutalist-button:hover {
+    @apply bg-violet-accent text-white border-violet-accent;
+  }
+
+  .brutalist-button.active {
+    @apply bg-neutral-dark text-white;
+  }
+
+  .sector-block {
+    @apply bg-white border-0;
+  }
+
+  .material-symbols-outlined {
+    font-size: 18px;
+    /* Default size */
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+}
