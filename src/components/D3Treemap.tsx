@@ -174,7 +174,16 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ data, startups, onStartupH
                                 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.4, ease: "easeOut" }}
-                                style={{ position: 'absolute', left: 0, top: 0, originX: 0, originY: 0 }}
+                                style={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    top: 0,
+                                    originX: 0,
+                                    originY: 0,
+                                    // CRITICAL Z-INDEX FIX: Parents (headers) must float physically HIGHER than children (colored background blocks)
+                                    // Because the DOM writes them first. We use 50 minus depth so root nodes are Highest.
+                                    zIndex: isLeaf ? 1 : (50 - node.depth)
+                                }}
                                 onMouseEnter={() => {
                                     setHoveredNodeId(nodeId);
                                     if (isLeaf) {
@@ -204,7 +213,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ data, startups, onStartupH
                                 {/* Header text isolation for Categories */}
                                 {!isLeaf && w > 30 && h > PADDING_TOP && (
                                     <div
-                                        className="w-full border-b border-gray-300 flex items-center shrink-0 px-2 overflow-hidden bg-[#f0f0f0]/30"
+                                        className="w-full border-b border-gray-300 flex items-center shrink-0 px-2 overflow-hidden bg-white/95 backdrop-blur-sm"
                                         style={{ height: PADDING_TOP }}
                                     >
                                         <span className="font-mono text-[11px] font-bold text-gray-500 uppercase tracking-widest truncate leading-none pt-0.5">
