@@ -151,6 +151,11 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                     const w = x1 - x0;
                     const h = y1 - y0;
 
+                    // Calculate the designated header height strictly driven by D3's assigned padding.
+                    // If leaf node, it's 0. If parent, it's the physical diff between parent.y0 and its first child's.y0
+                    const layoutHeaderH = node.children ? node.children[0].y0 - node.y0 : 0;
+                    const pixelHeaderH = dy(node.y0 + layoutHeaderH) - dy(node.y0);
+
                     // If a node goes completely off-viewport or is inverted during transitions
                     const isVisible = w > 0 && h > 0 && x1 > 0 && x0 < dimensions.w && y1 > 0 && y0 < dimensions.h;
 
@@ -203,21 +208,24 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                             {w > 30 && h > 15 && (
                                 <foreignObject
                                     width={Math.max(0, w)}
-                                    height={Math.max(0, h)}
+                                    // Binds height solely to the header constraint if it's a parent to prevent disappearing behind children
+                                    height={isLeaf ? Math.max(0, h) : Math.max(0, pixelHeaderH)}
                                     className="pointer-events-none"
                                 >
                                     {/* HTML Container for Text */}
                                     <div
                                         className={`w-full h-full flex flex-col box-border overflow-hidden 
-                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start items-start' : 'p-2 justify-center items-center text-center'}`}
+                                            ${isLeaf ? 'p-1.5 sm:p-2 justify-start items-start' : 'px-4 justify-center items-center text-center'}`}
                                         style={{ color: textColor }}
                                     >
                                         <div
                                             className={`font-black break-words leading-none w-full
-                                                ${!isLeaf ? 'uppercase tracking-wider opacity-90' : 'opacity-90'}
+                                                ${!isLeaf ? 'uppercase tracking-wider opacity-100' : 'opacity-90'}
                                             `}
                                             style={{
-                                                fontSize: isLeaf ? (w > 100 && h > 50 ? '14px' : '10px') : Math.max(12, Math.min(32, w * 0.1)) + 'px',
+                                                fontSize: isLeaf
+                                                    ? Math.max(9, Math.min(16, w * 0.08, h * 0.15)) + 'px'
+                                                    : Math.max(10, Math.min(32, w * 0.05, pixelHeaderH * 0.4)) + 'px',
                                             }}
                                         >
                                             {node.data.name}
@@ -226,7 +234,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                         {isLeaf && w > 60 && h > 40 && (
                                             <div
                                                 className="font-bold opacity-50 italic mt-1 text-left w-full"
-                                                style={{ fontSize: w > 100 ? '11px' : '9px' }}
+                                                style={{ fontSize: Math.max(8, Math.min(12, w * 0.06, h * 0.1)) + 'px' }}
                                             >
                                                 {formatValue(node.data.value)}
                                             </div>
