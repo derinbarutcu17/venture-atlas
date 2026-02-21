@@ -6,6 +6,7 @@ import { CompaniesView } from './CompaniesView';
 import { InvestorsView } from './InvestorsView';
 import { supabase } from '../lib/supabaseClient';
 import { startupsMaster } from '../data/startups_master';
+import { transformStartupsToHierarchy } from '../data/transformer';
 
 export const Dashboard: React.FC = () => {
     // ---- STATE ----
@@ -83,6 +84,8 @@ export const Dashboard: React.FC = () => {
         return filteredStartups.reduce((acc, s) => acc + s.funding, 0);
     }, [filteredStartups]);
 
+    const fullHierarchy = useMemo(() => transformStartupsToHierarchy(filteredStartups), [filteredStartups]);
+
     return (
         <div className="h-screen w-screen bg-white text-black transition-colors duration-300 overflow-hidden flex flex-col font-mono selection:bg-black selection:text-white">
             {/* Header / Nav - Simplified No Black Bars */}
@@ -129,6 +132,7 @@ export const Dashboard: React.FC = () => {
                         {view === 'ecosystem' && (
                             <div className="w-full h-full overflow-hidden bg-white shadow-[0_0_40px_rgba(0,0,0,0.03)] rounded-xl relative">
                                 <D3Treemap
+                                    data={fullHierarchy}
                                     startups={filteredStartups}
                                     onStartupHover={(s: Startup | null, isCat?: boolean, name?: string) => setHoveredData({ startup: s, isCategory: !!isCat, categoryName: name })}
                                 />
