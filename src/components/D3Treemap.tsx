@@ -153,7 +153,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
                     // Calculate the designated header height strictly driven by D3's assigned padding.
                     // If leaf node, it's 0. If parent, it's the physical diff between parent.y0 and its first child's.y0
-                    const layoutHeaderH = node.children ? node.children[0].y0 - node.y0 : 0;
+                    const layoutHeaderH = node.children ? Math.max(0, node.children[0].y0 - node.y0) : 0;
                     const pixelHeaderH = dy(node.y0 + layoutHeaderH) - dy(node.y0);
 
                     // If a node goes completely off-viewport or is inverted during transitions
@@ -172,6 +172,9 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
 
                     // Skip perfectly invisible nodes
                     if (!isVisible && activeNode !== node) return null;
+
+                    // Validate that the rendered header actually makes sense physically before drawing it to prevent bleeding out of its container
+                    const safeHeaderH = Math.min(Math.max(0, pixelHeaderH), h);
 
                     return (
                         <g
@@ -209,7 +212,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                 <foreignObject
                                     width={Math.max(0, w)}
                                     // Binds height solely to the header constraint if it's a parent to prevent disappearing behind children
-                                    height={isLeaf ? Math.max(0, h) : Math.max(0, pixelHeaderH)}
+                                    height={isLeaf ? Math.max(0, h) : Math.max(0, safeHeaderH)}
                                     className="pointer-events-none"
                                 >
                                     {/* HTML Container for Text */}
@@ -225,7 +228,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({
                                             style={{
                                                 fontSize: isLeaf
                                                     ? Math.max(9, Math.min(16, w * 0.08, h * 0.15)) + 'px'
-                                                    : Math.max(10, Math.min(32, w * 0.05, pixelHeaderH * 0.4)) + 'px',
+                                                    : Math.max(10, Math.min(32, w * 0.05, safeHeaderH * 0.4)) + 'px',
                                             }}
                                         >
                                             {node.data.name}
