@@ -162,7 +162,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ data, startups, onStartupH
 
                         return (
                             <motion.div
-                                key={`${activeNode.name}-${nodeId}`} // Force fresh dom elements strictly mapped to rendering root context
+                                key={`${activeNode.name}-${node.depth}-${nodeId}`} // Force fresh dom elements strictly mapped to rendering root context and depth to prevent E-commerce key overlap
                                 initial={{ opacity: 0, scale: 0.98 }}
                                 animate={{
                                     opacity: 1,
@@ -174,7 +174,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ data, startups, onStartupH
                                 }}
                                 exit={{ opacity: 0 }}
                                 transition={{ duration: 0.4, ease: "easeOut" }}
-                                style={{ position: 'absolute' }}
+                                style={{ position: 'absolute', left: 0, top: 0, originX: 0, originY: 0 }}
                                 onMouseEnter={() => {
                                     setHoveredNodeId(nodeId);
                                     if (isLeaf) {
