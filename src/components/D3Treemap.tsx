@@ -38,9 +38,8 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
         const treemapLayout = d3.treemap<TreemapNode>()
             .size([dimensions.w, dimensions.h])
-            .paddingTop(node => node.children ? 24 : 0)  // Reserve 24px for every parent header
+            .paddingTop(node => node.depth > 0 && node.children ? 24 : 0)
             .paddingInner(2)
-            .paddingOuter(1)
             .round(true)
             .tile(d3.treemapSquarify);
 
@@ -99,16 +98,8 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
     // MANDATE 7: Navigation handlers
     const zoomTo = useCallback((id: string | null) => setZoomPathId(id), []);
 
-    const handleNodeClick = useCallback((e: React.MouseEvent, node: d3.HierarchyRectangularNode<TreemapNode>) => {
-        e.stopPropagation();
-        if (node === activeNode && activeNode.parent) {
-            // Re-click active node → zoom out
-            zoomTo(activeNode.parent.data.id || activeNode.parent.data.name || null);
-        } else if (node.children && node.children.length > 0) {
-            // Click parent category → zoom in
-            zoomTo(node.data.id || node.data.name);
-        }
-    }, [activeNode, zoomTo]);
+
+
 
     if (!dimensions.w || !dimensions.h) return <div ref={containerRef} className="w-full h-full bg-white" />;
 
@@ -120,101 +111,61 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                 height="100%"
                 className="w-full h-full block cursor-crosshair select-none"
             >
-                {/* MANDATE 4: sortedNodes guarantees parents paint before children */}
-                {sortedNodes.map((node) => {
+                {sortedNodes.map(node => {
                     if (node.depth === 0) return null;
 
-                    const isLeaf = !node.children || node.children.length === 0;
-                    const nodeId = node.data.id || node.data.name;
-
-                    // MANDATE 5: Pure scale-based coordinates — no custom math
-                    const x0 = dx(node.x0);
-                    const x1 = dx(node.x1);
-                    const y0 = dy(node.y0);
-                    const y1 = dy(node.y1);
-                    const w = x1 - x0;
-                    const h = y1 - y0;
+                    const x0 = dx(node.x0), x1 = dx(node.x1), y0 = dy(node.y0), y1 = dy(node.y1);
+                    const w = Math.max(0, x1 - x0);
+                    const h = Math.max(0, y1 - y0);
+                    const isLeaf = !node.children;
 
                     if (w <= 0 || h <= 0) return null;
 
-                    // Cull nodes fully outside viewport
-                    if (x1 < 0 || x0 > dimensions.w || y1 < 0 || y0 > dimensions.h) return null;
-
-                    // Color logic: PARENT nodes carry the sector color; LEAF nodes are transparent wireframes.
-                    let sectorNode = node;
-                    while (sectorNode.parent && sectorNode.parent.depth > 0) sectorNode = sectorNode.parent;
-                    const sectorColor = colorScale(sectorNode.data.name);
-                    const isHovered = hoveredNodeId === nodeId;
-                    // Parents get the pastel sector fill; leaves get a near-transparent white over the parent's color
-                    const fill = isLeaf
-                        ? (isHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.35)')
-                        : (isHovered ? (d3.color(sectorColor)?.darker(0.12).formatHex() || sectorColor) : sectorColor);
-
-
-                    return (
-                        <g
-                            key={nodeId}
-                            transform={`translate(${x0},${y0})`}
-                            onMouseEnter={() => {
-                                setHoveredNodeId(nodeId);
-                                if (isLeaf) {
-                                    const s = startups.find(x => x.id === node.data.id);
-                                    onStartupHover(s || null);
-                                } else {
-                                    onStartupHover(null, true, node.data.name);
-                                }
-                            }}
-                            onMouseLeave={() => { setHoveredNodeId(null); onStartupHover(null); }}
-                            onClick={(e) => handleNodeClick(e, node)}
-                            style={{ cursor: isLeaf ? 'default' : 'pointer' }}
-                        >
-                            <rect
-                                width={Math.max(0, w)}
-                                height={Math.max(0, h)}
-                                fill={fill}
-                                stroke="rgba(0,0,0,0.08)"
-                                strokeWidth={isHovered ? 2 : 1}
-                                rx={1}
-                            />
-
-                            {/* PARENT HEADER: rendered in the 24px D3 reserved space at the top of the node */}
-                            {!isLeaf && w > 30 && (
-                                <foreignObject
-                                    x={0}
-                                    y={0}
-                                    width={Math.max(0, w)}
-                                    height={24}
-                                    className="pointer-events-none overflow-hidden"
-                                >
-                                    <div className="w-full h-full flex items-center px-2 overflow-hidden">
-                                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest truncate text-[#444444] opacity-70">
-                                            {node.data.name}
-                                        </span>
-                                    </div>
-                                </foreignObject>
-                            )}
-
-                            {/* LEAF NODE TEXT: company name + funding value */}
-                            {isLeaf && w > 40 && h > 25 && (
-                                <foreignObject
-                                    width={Math.max(0, w)}
-                                    height={Math.max(0, h)}
-                                    className="pointer-events-none overflow-hidden"
-                                >
-                                    <div className="w-full h-full flex flex-col overflow-hidden p-1.5 box-border justify-start">
-                                        <div className="font-sans font-black text-xs leading-tight truncate w-full text-[#111111]">
+                    // --- RENDER PARENT CONTAINERS (Headers & Colored Backgrounds) ---
+                    if (!isLeaf) {
+                        return (
+                            <g key={node.data.name} style={{ transform: `translate(${x0}px, ${y0}px)` }} onClick={(e) => { e.stopPropagation(); zoomTo(node.data.name); }}>
+                                <rect width={w} height={h} fill={colorScale(node.data.name)} stroke="rgba(0,0,0,0.1)" />
+                                {w > 30 && h > 20 && (
+                                    <foreignObject width={w} height={24} className="pointer-events-none">
+                                        <div className="w-full h-full flex items-center px-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black/40 truncate">
                                             {node.data.name}
                                         </div>
-                                        {h > 38 && (
-                                            <div className="font-mono text-[9px] opacity-55 truncate w-full mt-0.5 text-[#333333]">
-                                                {formatValue(node.data.value)}
+                                    </foreignObject>
+                                )}
+                            </g>
+                        );
+                    }
+
+                    // --- RENDER LEAF NODES (Startups) ---
+                    if (isLeaf) {
+                        return (
+                            <g key={node.data.id} style={{ transform: `translate(${x0}px, ${y0}px)` }}
+                                onMouseEnter={() => { setHoveredNodeId(node.data.id || node.data.name); const s = startups.find(x => x.id === node.data.id); onStartupHover(s || null); }}
+                                onMouseLeave={() => { setHoveredNodeId(null); onStartupHover(null); }}
+                            >
+                                <rect
+                                    width={w} height={h}
+                                    fill={hoveredNodeId === (node.data.id || node.data.name) ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.55)'}
+                                    stroke="rgba(0,0,0,0.15)"
+                                />
+                                {w > 40 && h > 25 && (
+                                    <foreignObject width={w} height={h} className="pointer-events-none">
+                                        <div className="w-full h-full flex flex-col p-1.5 overflow-hidden">
+                                            <div className="truncate font-sans font-bold text-[11px] text-black leading-tight">
+                                                {node.data.name}
                                             </div>
-                                        )}
-                                    </div>
-                                </foreignObject>
-                            )}
-                        </g>
-                    );
+                                            {w > 50 && h > 35 && (
+                                                <div className="truncate font-mono text-[9px] font-bold text-black/50 mt-0.5">
+                                                    {formatValue(node.data.value)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </foreignObject>
+                                )}
+                            </g>
+                        );
+                    }
                 })}
             </svg>
         </div>
