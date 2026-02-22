@@ -9,16 +9,6 @@ interface D3TreemapProps {
     onStartupHover: (s: Startup | null, isCategory?: boolean, categoryName?: string) => void;
 }
 
-// Helper to determine text color based on background luminance
-function getContrastColor(hexcolor: string) {
-    if (!hexcolor) return '#000000';
-    hexcolor = hexcolor.replace('#', '');
-    const r = parseInt(hexcolor.substr(0, 2), 16);
-    const g = parseInt(hexcolor.substr(2, 2), 16);
-    const b = parseInt(hexcolor.substr(4, 2), 16);
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return (yiq >= 128) ? '#000000' : '#ffffff';
-}
 
 export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }) => {
     const svgRef = useRef<SVGSVGElement>(null);
@@ -48,8 +38,8 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
         const treemapLayout = d3.treemap<TreemapNode>()
             .size([dimensions.w, dimensions.h])
-            .paddingTop(node => (node.depth === 1 || node.depth === 2) ? 24 : 0)  // MANDATE 2
-            .paddingInner(2)                                                         // MANDATE 2
+            .paddingTop(node => node.children ? 24 : 0)  // Reserve 24px for every parent header
+            .paddingInner(2)
             .paddingOuter(1)
             .round(true)
             .tile(d3.treemapSquarify);
@@ -150,13 +140,16 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                     // Cull nodes fully outside viewport
                     if (x1 < 0 || x0 > dimensions.w || y1 < 0 || y0 > dimensions.h) return null;
 
-                    // Color
+                    // Color logic: PARENT nodes carry the sector color; LEAF nodes are transparent wireframes.
                     let sectorNode = node;
                     while (sectorNode.parent && sectorNode.parent.depth > 0) sectorNode = sectorNode.parent;
-                    const baseColor = colorScale(sectorNode.data.name);
+                    const sectorColor = colorScale(sectorNode.data.name);
                     const isHovered = hoveredNodeId === nodeId;
-                    const fill = isHovered ? (d3.color(baseColor)?.darker(0.12).formatHex() || baseColor) : baseColor;
-                    const textColor = getContrastColor(fill);
+                    // Parents get the pastel sector fill; leaves get a near-transparent white over the parent's color
+                    const fill = isLeaf
+                        ? (isHovered ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.35)')
+                        : (isHovered ? (d3.color(sectorColor)?.darker(0.12).formatHex() || sectorColor) : sectorColor);
+
 
                     return (
                         <g
@@ -184,36 +177,37 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                                 rx={1}
                             />
 
-                            {/* MANDATE 6: foreignObject text — static Tailwind sizes, overflow-hidden truncate */}
-                            {w > 40 && h > 25 && (
+                            {/* PARENT HEADER: rendered in the 24px D3 reserved space at the top of the node */}
+                            {!isLeaf && w > 30 && (
+                                <foreignObject
+                                    x={0}
+                                    y={0}
+                                    width={Math.max(0, w)}
+                                    height={24}
+                                    className="pointer-events-none overflow-hidden"
+                                >
+                                    <div className="w-full h-full flex items-center px-2 overflow-hidden">
+                                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest truncate text-[#444444] opacity-70">
+                                            {node.data.name}
+                                        </span>
+                                    </div>
+                                </foreignObject>
+                            )}
+
+                            {/* LEAF NODE TEXT: company name + funding value */}
+                            {isLeaf && w > 40 && h > 25 && (
                                 <foreignObject
                                     width={Math.max(0, w)}
                                     height={Math.max(0, h)}
                                     className="pointer-events-none overflow-hidden"
                                 >
-                                    <div className="w-full h-full flex flex-col overflow-hidden p-1.5 box-border">
-                                        {isLeaf ? (
-                                            // ── Company node
-                                            <>
-                                                <div
-                                                    className="font-sans font-black text-xs leading-tight truncate w-full"
-                                                    style={{ color: textColor }}
-                                                >
-                                                    {node.data.name}
-                                                </div>
-                                                {h > 38 && (
-                                                    <div
-                                                        className="font-mono text-[9px] opacity-60 truncate w-full mt-0.5"
-                                                        style={{ color: textColor }}
-                                                    >
-                                                        {formatValue(node.data.value)}
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            // ── Category / vertical header (D3 paddingTop reserved 24px of space above children)
-                                            <div className="font-mono text-[10px] font-bold uppercase tracking-widest truncate w-full text-[#555555]">
-                                                {node.data.name}
+                                    <div className="w-full h-full flex flex-col overflow-hidden p-1.5 box-border justify-start">
+                                        <div className="font-sans font-black text-xs leading-tight truncate w-full text-[#111111]">
+                                            {node.data.name}
+                                        </div>
+                                        {h > 38 && (
+                                            <div className="font-mono text-[9px] opacity-55 truncate w-full mt-0.5 text-[#333333]">
+                                                {formatValue(node.data.value)}
                                             </div>
                                         )}
                                     </div>
