@@ -188,50 +188,6 @@ const INVESTOR_DATA: InvestorData[] = [
 
 type SortKey = 'aumValue' | 'deals' | 'unicorns';
 
-// Bar chart for sector intensity
-const SectorIntensity: React.FC<{ sectors: Partial<Record<string, number>> }> = ({ sectors }) => {
-    const allSectors = [
-        'Standard Tech', 'Creative Economy', 'Built World', 'Industrial Tech',
-        'Food & AgTech', 'Health & Care', 'Mobility & Logistics', 'Social & Impact'
-    ];
-    return (
-        <div className="flex gap-[3px] items-end h-8">
-            {allSectors.map(s => {
-                const intensity = (sectors as any)[s] || 0.05;
-                return (
-                    <div key={s} className="relative group/bar flex flex-col items-center">
-                        <div
-                            className="w-[5px] transition-all duration-500 hover:opacity-100"
-                            style={{ height: `${intensity * 32}px`, background: `rgba(0,0,0,${intensity})` }}
-                        />
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/bar:opacity-100 whitespace-nowrap z-30 pointer-events-none leading-tight">
-                            {s}<br />{(intensity * 100).toFixed(0)}%
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
-// SVG sparkline
-const Sparkline: React.FC<{ data: number[]; color?: string }> = ({ data, color = 'black' }) => {
-    const width = 90, height = 28;
-    const max = Math.max(...data);
-    const points = data.map((d, i) => `${(i / (data.length - 1)) * width},${height - (d / max) * height}`).join(' ');
-    return (
-        <svg width={width} height={height} className="overflow-visible">
-            <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} />
-            <circle
-                cx={(width)}
-                cy={height - (data[data.length - 1] / max) * height}
-                r="2.5"
-                fill={color}
-            />
-        </svg>
-    );
-};
-
 // Stage pill
 const StagePill: React.FC<{ stage: string }> = ({ stage }) => (
     <span className="inline-block text-[9px] font-black uppercase tracking-wider border border-black/20 px-2 py-0.5 mr-1 mb-1">{stage}</span>
@@ -320,17 +276,6 @@ export const InvestorsView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Sparkline */}
-                                    <div className="hidden xl:flex flex-col flex-shrink-0">
-                                        <div className="text-[9px] uppercase font-bold text-black/30 mb-1 tracking-widest">Deal Velocity</div>
-                                        <Sparkline data={vc.velocity} />
-                                    </div>
-
-                                    {/* Sector Heatmap */}
-                                    <div className="hidden lg:flex flex-col flex-shrink-0">
-                                        <div className="text-[9px] uppercase font-bold text-black/30 mb-1 tracking-widest">Sector Focus</div>
-                                        <SectorIntensity sectors={vc.sectors} />
-                                    </div>
                                 </div>
 
                                 <div className="flex items-center gap-3 flex-shrink-0">
