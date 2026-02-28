@@ -12,7 +12,7 @@ type D3Node = d3.HierarchyRectangularNode<TreemapNode> & { uid: string };
 
 const PALETTE = ['#EAFBDE', '#F9F0FF', '#F0F5FA', '#FFF0F6', '#FEFFE6', '#E6FFFB', '#FFF1F0', '#F5F5F5', '#E6F4FF', '#FCFFE6'];
 const DUR = 480;
-const MAX_EXPANSION = 4;
+const MAX_EXPANSION = 8;
 
 export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -82,7 +82,9 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
         // Build full hierarchy with stable UIDs
         const h = d3.hierarchy<TreemapNode>(fullHierarchy)
-            .sum(d => (!d.children?.length) ? Math.max(d.value || 0, 40) : 0)
+            // SQUARE ROOT SCALING: Puffs up small values so they are visible.
+            // Math.max(v, 300) ensures a readable minimum floor after root scaling.
+            .sum(d => (!d.children?.length) ? Math.pow(Math.max(d.value || 0, 300), 0.5) : 0)
             .sort((a, b) => (b.value || 0) - (a.value || 0));
 
         h.each(node => {
@@ -103,7 +105,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
         // Compute layout on isolated subtree
         const subtree = activeFullNode.copy();
-        subtree.sum(d => (!d.children?.length) ? Math.max(d.value || 0, 40) : 0);
+        subtree.sum(d => (!d.children?.length) ? Math.pow(Math.max(d.value || 0, 300), 0.5) : 0);
 
         const layoutHeight = dimensions.h * expansion;
 
