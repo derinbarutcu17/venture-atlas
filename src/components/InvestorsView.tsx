@@ -297,51 +297,61 @@ export const InvestorsView: React.FC = () => {
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                                        className="overflow-hidden border-t border-black/5"
+                                        className="overflow-hidden border-t border-black/8"
                                     >
-                                        <div className="px-4 md:px-20 py-10 grid grid-cols-1 lg:grid-cols-3 gap-12">
-                                            {/* Col 1: Fund Details */}
-                                            <div className="flex flex-col gap-6">
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-3">Fund Overview</div>
-                                                    <p className="text-sm leading-relaxed text-black/80">{vc.description}</p>
+                                        <div className="px-6 md:px-16 py-12 grid grid-cols-1 lg:grid-cols-3 gap-10 bg-[#fafafa]">
+
+                                            {/* ── Col 1: Fund Identity ── */}
+                                            <div className="flex flex-col gap-8">
+
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50">Fund Overview</div>
+                                                    <p className="text-[15px] leading-[1.65] text-black/75 font-normal">{vc.description}</p>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Investment Thesis</div>
-                                                    <p className="text-xs leading-relaxed text-black/60 italic">"{vc.thesis}"</p>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50">Investment Thesis</div>
+                                                    <p className="text-[14px] leading-[1.6] text-black/60 italic border-l-2 border-black/15 pl-3">{vc.thesis}</p>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Stage Focus</div>
-                                                    <div className="flex flex-wrap">{vc.stages.map(s => <StagePill key={s} stage={s} />)}</div>
+
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50">Stage Focus</div>
+                                                    <div className="flex flex-wrap gap-1.5">{vc.stages.map(s => <StagePill key={s} stage={s} />)}</div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-1.5">Latest Fund</div>
-                                                    <div className="text-sm font-bold">{vc.latestFund}</div>
+
+                                                <div className="flex flex-col gap-1.5 pt-2 border-t border-black/8">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50">Latest Fund</div>
+                                                    <div className="text-[15px] font-bold text-black/80">{vc.latestFund}</div>
                                                 </div>
+
                                                 <a
                                                     href={`https://${vc.website}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-black px-3 py-2 hover:bg-black hover:text-white transition-colors w-fit"
+                                                    className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider border border-black/30 px-4 py-2.5 hover:bg-black hover:text-white hover:border-black transition-all duration-200 w-fit rounded-sm"
                                                     onClick={e => e.stopPropagation()}
                                                 >
-                                                    <ExternalLink className="w-3 h-3" />
+                                                    <ExternalLink className="w-3.5 h-3.5" />
                                                     {vc.website}
                                                 </a>
                                             </div>
 
-                                            {/* Col 2: Berlin Portfolio */}
-                                            <div className="flex flex-col gap-4">
-                                                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-1">Select Berlin Portfolio</div>
+                                            {/* ── Col 2: Berlin Portfolio ── */}
+                                            <div className="flex flex-col gap-3">
+                                                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50 mb-1">Select Berlin Portfolio</div>
                                                 {vc.berlinPortfolio.map(co => (
-                                                    <div key={co.name} className="flex justify-between items-start gap-4 py-3 border-b border-black/5 group/row hover:border-black/20 transition-colors">
+                                                    <div key={co.name} className="flex justify-between items-center gap-4 py-3.5 px-1 border-b border-black/8 hover:bg-black/[0.02] transition-colors rounded-sm">
                                                         <div className="flex flex-col gap-0.5">
-                                                            <span className="text-sm font-black uppercase">{co.name}</span>
-                                                            <span className="text-[9px] font-bold uppercase text-black/40">{co.sector}</span>
+                                                            <span className="text-[15px] font-bold text-black/85 leading-snug">{co.name}</span>
+                                                            <span className="text-[12px] font-medium text-black/45 uppercase tracking-wide">{co.sector}</span>
                                                         </div>
-                                                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                                                            <span className="text-[10px] font-black text-black/70">{co.raised}</span>
-                                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 ${co.status === 'Unicorn' ? 'bg-black text-white' : co.status === 'Public' ? 'bg-black/10' : co.status === 'Exit' ? 'bg-black/5 text-black/40' : 'border border-black/20'}`}>
+                                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                            <span className="text-[13px] font-bold text-black/65">{co.raised}</span>
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm ${co.status === 'Unicorn' ? 'bg-black text-white' :
+                                                                    co.status === 'Public' ? 'bg-black/10 text-black/60' :
+                                                                        co.status === 'Exit' || co.status.startsWith('Exit') ? 'bg-black/5 text-black/35' :
+                                                                            'border border-black/20 text-black/50'
+                                                                }`}>
                                                                 {co.status}
                                                             </span>
                                                         </div>
@@ -349,40 +359,48 @@ export const InvestorsView: React.FC = () => {
                                                 ))}
                                             </div>
 
-                                            {/* Col 3: Activity + Stats */}
-                                            <div className="flex flex-col gap-6">
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-3">Recent Activity (2025–2026)</div>
-                                                    <p className="text-xs leading-relaxed text-black/70">{vc.recentActivity}</p>
+                                            {/* ── Col 3: Activity & Stats ── */}
+                                            <div className="flex flex-col gap-8">
+
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50">Recent Activity (2025–2026)</div>
+                                                    <p className="text-[14px] leading-[1.65] text-black/70">{vc.recentActivity}</p>
                                                 </div>
 
-                                                {/* Stats Grid */}
-                                                <div className="grid grid-cols-2 gap-4 border border-black/10 p-4">
-                                                    {[
-                                                        { label: 'Est. AUM', val: vc.aum },
-                                                        { label: 'Active Since', val: vc.activeSince.toString() },
-                                                        { label: 'HQ', val: vc.hq },
-                                                        { label: 'Unicorns', val: `${vc.unicorns}` },
-                                                        { label: 'Portfolio Cos.', val: `${vc.deals}+` },
-                                                    ].map(stat => (
-                                                        <div key={stat.label} className="flex flex-col">
-                                                            <div className="text-[8px] uppercase font-bold text-black/30 tracking-widest">{stat.label}</div>
-                                                            <div className="text-sm font-black tabular-nums">{stat.val}</div>
-                                                        </div>
-                                                    ))}
+                                                {/* Key Stats */}
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50 mb-2">Key Stats</div>
+                                                    <div className="grid grid-cols-2 gap-x-6 gap-y-4 border border-black/10 rounded-sm p-5 bg-white">
+                                                        {[
+                                                            { label: 'Est. AUM', val: vc.aum },
+                                                            { label: 'Active Since', val: vc.activeSince.toString() },
+                                                            { label: 'HQ', val: vc.hq },
+                                                            { label: 'Unicorns', val: `${vc.unicorns}` },
+                                                            { label: 'Portfolio Cos.', val: `${vc.deals}+` },
+                                                        ].map(stat => (
+                                                            <div key={stat.label} className="flex flex-col gap-0.5">
+                                                                <div className="text-[10px] font-bold uppercase tracking-wider text-black/40">{stat.label}</div>
+                                                                <div className="text-[16px] font-black tabular-nums text-black/85">{stat.val}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
 
-                                                <div>
-                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Sector Focus (Visual)</div>
+                                                {/* Sector Focus Bars */}
+                                                <div className="flex flex-col gap-2">
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-black/50 mb-1">Sector Allocation</div>
                                                     {Object.entries(vc.sectors)
                                                         .sort(([, a], [, b]) => (b as number) - (a as number))
                                                         .map(([sector, val]) => (
-                                                            <div key={sector} className="flex items-center gap-3 mb-2">
-                                                                <div className="text-[9px] font-bold uppercase w-32 truncate text-black/60">{sector}</div>
-                                                                <div className="flex-1 h-1 bg-black/5 rounded-full overflow-hidden">
-                                                                    <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${(val as number) * 100}%` }} />
+                                                            <div key={sector} className="flex items-center gap-3">
+                                                                <div className="text-[12px] font-medium text-black/55 w-36 flex-shrink-0 truncate">{sector}</div>
+                                                                <div className="flex-1 h-1.5 bg-black/8 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className="h-full bg-black/60 rounded-full transition-all duration-500"
+                                                                        style={{ width: `${(val as number) * 100}%` }}
+                                                                    />
                                                                 </div>
-                                                                <div className="text-[9px] font-black tabular-nums text-black/40 w-8 text-right">{((val as number) * 100).toFixed(0)}%</div>
+                                                                <div className="text-[12px] font-bold tabular-nums text-black/45 w-9 text-right">{((val as number) * 100).toFixed(0)}%</div>
                                                             </div>
                                                         ))}
                                                 </div>
