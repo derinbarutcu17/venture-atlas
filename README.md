@@ -1,34 +1,44 @@
-# Venture Atlas
+# Berlin Venture Atlas
 
-**Venture Atlas** is a highly interactive, fluid D3.js and React-based data visualization platform. It explores and maps out corporate and startup ecosystems into beautifully ordered hierarchical treemaps.
+**Berlin Venture Atlas** is a high-density, interactive data intelligence platform designed to map the heartbeat of the Berlin startup ecosystem. It transforms complex hierarchies of sectors, verticals, and companies into a fluid, research-grade visual experience.
 
-## Features
+Built for investors, founders, and policy-makers, the Atlas provides a macro-to-micro view of capital distribution and innovation clusters in Europe's most dynamic tech hub.
 
-- **Fluid Zooming:** Smooth, GSAP-powered spatial continuous zooming scaling seamlessly through infinite hierarchical levels without browser rendering distortion.
-- **Paradigm-Style Typography:** A rigorously built custom D3 padding mapping system ensures text is never squished, wrapped incorrectly, or artificially forced out of frame. 
-   - Metadata and Category tags are rendered with explicitly constrained `font-mono`, uppercase muted colors, snapping flush to their designated allocation space.
-   - Companies are aggressively presented as data payload, anchoring securely with dense, high-contrast, `font-sans` weights.
-- **Ecosystem Rendering:** Supports categorizing data by overarching standard ecosystem sectors (e.g. Fintech, Healthcare), isolating nested verticals, and visualizing their raw monetary impacts geographically.
-- **Physical Bounding Math:** The treemap avoids D3's typical "absolute dimension locking" flaw during continuous zoom states. It intercepts abstract layouts dynamically and restricts headers via customized React recursive math—capping structural layers to `15%` maximum footprint so data payload (the companies) dominantly scales at up to 500x magnification without clipping.
-- **Hover Overlays:** Rich framer-motion powered follow-mouse hovering tooltips instantly inject complete data profiles of companies onto the viewport smoothly.
+---
 
-## Technologies Used
+## The Intelligence Matrix
 
-- **React / Vite**: Core rendering framework.
-- **D3.js**: Calculates squarified treemap hierarchies and scale domains dynamically based on value inputs (e.g., millions of euros).
-- **GSAP**: Executes multi-threaded matrix transforms (`tween()`) across the component lifecycle for 60fps zooming without causing expensive HTML layout repaints.
-- **Tailwind CSS**: Strict, atomic functional design styling defining the physical typography matrices and border layouts.
-- **Framer Motion**: Orchestrates organic, mass/spring fluid layout changes and tooltip interpolations.
+- **Active Capital Matrix**: A real-time (Feb 2026) validated database of the most active VC funds, ranked by AUM, deal velocity, and unicorn-backing performance.
+- **Ecosystem Treemap**: A dense spatial map of every significant startup in Berlin, categorized by sector intensity.
+- **Micro-to-Macro Navigation**: Fluid breadcrumb-based deep dives into specific verticals like *Defense AI*, *GovTech*, and *Quantum Computing*.
+- **Brutalist Design Language**: A high-contrast, typographic aesthetic inspired by research journals and financial terminals, prioritizing data density and legibility.
 
-## Running Locally
+---
 
-To start the platform up via the development server:
-```bash
-npm install
-npm run dev
-```
+## Solving the "Infinite Density" Visual Problem
 
-To build for an optimized static production release:
-```bash
-npm run build
-```
+The core of the Berlin Venture Atlas is a custom-engineered **D3.js Treemap** engine. Standard data visualizations often break when forced to display thousands of disparate data points with highly varied values (from €1M seed rounds to €10B public giants). 
+
+We solved this through several key technical innovations:
+
+### 1. Square Root Spatial Allocation
+To prevent tiny startups from disappearing into single-pixel "dust," we implement a **Square Root Scaling** algorithm (`Math.pow(v, 0.5)`). This puffs up the visual footprint of smaller companies just enough to remain interactive and legible, while still maintaining the proportional weight of the market leaders.
+
+### 2. Recursive Padding Architecture
+One of the most complex challenges in nested treemaps is header maintenance. We developed a **Fixed-Header Padding System** that strictly reserves exactly `24px` at the top of every parent category, regardless of the current zoom depth. This ensures that the user always knows exactly which "Sector" and "Vertical" they are looking at in any zoom state.
+
+### 3. Vertical Expansion Wheel-Interception
+When a specific sector (like Fintech) is exceptionally dense, a standard screen-fitted treemap becomes unusable. Our engine intercepts **Wheel Events** to allow the map to "Expand Vertically" up to **800% of the viewport height**. This creates a "scrollable map" that maintains the squarify layout logic while providing enough physical space for every data point to breathe.
+
+### 4. HTML-in-SVG Hybrid Rendering
+We moved away from standard SVG `<text>` elements, which struggle with text-wrapping and complex CSS styling. Instead, the Atlas uses **SVG ForeignObjects** to inject scoped HTML/Tailwind containers into the D3 nodes. This allows us to use responsive typography, sophisticated overflow truncation, and hover states that are impossible with raw SVG.
+
+---
+
+## Data & Validation
+
+All data in the Berlin Venture Atlas is sourced from high-fidelity intelligence feeds including **PitchBook**, **Sifted**, **EU-Startups**, and direct fund disclosures. The platform is calibrated to reflect the state of the market as of **Q1 2026**.
+
+---
+
+© 2026 Venture Intelligence Unit. All rights reserved.
