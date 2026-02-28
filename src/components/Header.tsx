@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Map, PieChart } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
+import logo from '/logo.png';
 
 export type ViewMode = 'district' | 'sector' | 'burn';
 
@@ -20,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ currentMode, onModeChange }) => 
     return (
         <header className="fixed top-0 left-0 right-0 h-16 border-b border-border bg-background/90 backdrop-blur-sm z-50 flex items-center justify-between px-6">
             <div className="flex items-center gap-3">
-                <img src="/logo.png" alt="Berlin Venture Atlas Logo" className="w-8 h-8 object-contain" />
+                <img src={logo} alt="Berlin Venture Atlas Logo" className="w-8 h-8 object-contain" />
                 <h1 className="text-xl font-bold tracking-tighter">BERLIN VENTURE ATLAS</h1>
             </div>
 

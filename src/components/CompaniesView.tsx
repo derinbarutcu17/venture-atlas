@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { Startup, Sector } from '../types';
+import logo from '/logo.png';
 
 interface CompaniesViewProps {
     startups: Startup[];
@@ -163,7 +164,7 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
             {/* Brutalist Footer */}
             <footer className="w-full flex justify-between items-end pb-8 pt-6 border-t border-black/10 uppercase text-[11px] font-bold tracking-widest text-[#0a0a0a]/60 bg-[#f8fafc] mt-auto">
                 <div className="flex flex-col space-y-4">
-                    <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+                    <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
                     <div className="flex flex-col space-y-1.5">
                         <span>© 2026 Berlin Venture Atlas.</span>
                         <span>All rights reserved.</span>

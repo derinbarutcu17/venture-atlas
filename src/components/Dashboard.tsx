@@ -6,6 +6,7 @@ import { CompaniesView } from './CompaniesView';
 import { InvestorsView } from './InvestorsView';
 import { supabase } from '../lib/supabaseClient';
 import { startupsMaster } from '../data/startups_master';
+import logo from '/logo.png';
 
 export const Dashboard: React.FC = () => {
     // ---- STATE ----
@@ -88,7 +89,7 @@ export const Dashboard: React.FC = () => {
             {/* Header / Nav - Simplified No Black Bars */}
             <nav className="h-20 flex items-center justify-between px-10 bg-white z-[100] flex-shrink-0">
                 <div className="flex items-center space-x-4 cursor-pointer" onClick={() => setView('ecosystem')}>
-                    <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+                    <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
                     <div className="flex flex-col">
                         <span className="font-bold text-base uppercase tracking-tight leading-none">Berlin Venture Atlas</span>
                         <span className="text-[9px] text-neutral-mid uppercase tracking-[0.3em] mt-1.5 opacity-40">2026 RESEARCH EDITION</span>
