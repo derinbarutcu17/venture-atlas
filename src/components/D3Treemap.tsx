@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import type { Startup } from '../types';
 import { transformStartupsToHierarchy, type TreemapNode } from '../data/transformer';
@@ -10,115 +10,234 @@ interface D3TreemapProps {
 
 type D3Node = d3.HierarchyRectangularNode<TreemapNode> & { uid: string };
 
+const PALETTE = ['#EAFBDE', '#F9F0FF', '#F0F5FA', '#FFF0F6', '#FEFFE6', '#E6FFFB', '#FFF1F0', '#F5F5F5', '#E6F4FF', '#FCFFE6'];
+const DUR = 480;
+
 export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-    const [dimensions, setDimensions] = useState({ w: 1600, h: 1000 });
-    const [zoomUid, setZoomUid] = useState<string>('root');
+    const svgRef = useRef<SVGSVGElement>(null);
+    const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
+    const [zoomUid, setZoomUid] = useState('root');
+    const [breadcrumbs, setBreadcrumbs] = useState<{ uid: string; name: string }[]>([]);
 
-    useEffect(() => {
-        if (!containerRef.current) return;
-        const resizeObserver = new ResizeObserver(entries => {
-            const { width, height } = entries[0].contentRect;
-            if (width > 0 && height > 0) setDimensions({ w: width, h: height });
-        });
-        const target = containerRef.current.querySelector('.map-container') || containerRef.current;
-        resizeObserver.observe(target);
-        return () => resizeObserver.disconnect();
-    }, []);
+    // Mutable refs so D3 handlers always read the latest values without stale closures
+    const zoomUidRef = useRef('root');
+    const parentUidRef = useRef<string | null>(null);
+    const onHoverRef = useRef(onStartupHover);
+    const startupMapRef = useRef<Map<string, Startup>>(new Map());
+    const colorScaleRef = useRef<d3.ScaleOrdinal<string, string>>(d3.scaleOrdinal<string>());
+
+    useEffect(() => { onHoverRef.current = onStartupHover; }, [onStartupHover]);
+    useEffect(() => { startupMapRef.current = new Map(startups.map(s => [s.id, s])); }, [startups]);
 
     const fullHierarchy = useMemo(() => transformStartupsToHierarchy(startups), [startups]);
 
-    const { activeNode, nodesToRender, breadcrumbs } = useMemo(() => {
-        // Build the tree and apply floor math ONLY to the startups (leaf nodes)
-        const h = d3.hierarchy(fullHierarchy)
-            .sum(d => (d.children && d.children.length > 0) ? 0 : Math.max(d.value || 0, 40))
+    const colorScale = useMemo(() => {
+        const sectors = fullHierarchy.children?.map(d => d.name) || [];
+        return d3.scaleOrdinal<string>().domain(sectors).range(PALETTE);
+    }, [fullHierarchy]);
+
+    useEffect(() => { colorScaleRef.current = colorScale; }, [colorScale]);
+
+    // Resize observer
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const target = containerRef.current.querySelector('.map-container') as HTMLElement || containerRef.current;
+        const ro = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            if (width > 0 && height > 0)
+                setDimensions(prev => prev.w === width && prev.h === height ? prev : { w: width, h: height });
+        });
+        ro.observe(target);
+        return () => ro.disconnect();
+    }, []);
+
+    // ─── Main D3 rendering effect ───────────────────────────────────────────────
+    useEffect(() => {
+        if (!dimensions.w || !dimensions.h || !svgRef.current) return;
+
+        // Build full hierarchy with stable UIDs
+        const h = d3.hierarchy<TreemapNode>(fullHierarchy)
+            .sum(d => (!d.children?.length) ? Math.max(d.value || 0, 40) : 0)
             .sort((a, b) => (b.value || 0) - (a.value || 0));
 
-        // Assign stable UIDs based on path
-        h.each((node) => {
-            const d3Node = node as unknown as D3Node;
-            d3Node.uid = d3Node.parent ? `${d3Node.parent.uid}/${d3Node.data.id || d3Node.data.name}` : 'root';
-            // Store a reference inside .data so it survives the .copy() clone
-            (d3Node.data as any)._uid = d3Node.uid;
+        h.each(node => {
+            const n = node as unknown as D3Node;
+            n.uid = n.parent ? `${(n.parent as D3Node).uid}/${n.data.id || n.data.name}` : 'root';
+            (n.data as any)._uid = n.uid;
         });
 
-        const rootNode = h as D3Node;
-        const active = (rootNode.descendants().find(n => n.uid === zoomUid) || rootNode) as D3Node;
+        const fullRoot = h as D3Node;
+        const activeFullNode = (fullRoot.descendants().find(n => n.uid === zoomUidRef.current) || fullRoot) as D3Node;
+        parentUidRef.current = activeFullNode.parent ? (activeFullNode.parent as D3Node).uid : null;
 
-        const crumbs = [];
-        let current: D3Node | null = active;
-        while (current) {
-            crumbs.unshift({ uid: current.uid, name: current.data.name });
-            current = current.parent as D3Node | null;
-        }
+        // Breadcrumbs from full hierarchy
+        const crumbs: { uid: string; name: string }[] = [];
+        let cur: D3Node | null = activeFullNode;
+        while (cur) { crumbs.unshift({ uid: cur.uid, name: cur.data.name }); cur = cur.parent as D3Node | null; }
+        setBreadcrumbs(crumbs);
 
-        // REDRAW AS ROOT FIX: D3 treemap mathematically crashes if the input node's depth > 0 (NaN bug).
-        // To fix this, we create a strict .copy() proxy to reset depth, compute the dimensions, and map them back.
-        const isolatedSubtree = active.copy();
-        isolatedSubtree.sum(d => (d.children && d.children.length > 0) ? 0 : Math.max(d.value || 0, 40));
+        // Compute layout on isolated subtree (avoids D3 depth>0 NaN bug)
+        const subtree = activeFullNode.copy();
+        subtree.sum(d => (!d.children?.length) ? Math.max(d.value || 0, 40) : 0);
 
-        const treemapLayout = d3.treemap<TreemapNode>()
+        d3.treemap<TreemapNode>()
             .size([dimensions.w, dimensions.h])
             .paddingOuter(0)
             .paddingTop(node => (node.depth > 0 && node.children) ? 24 : 0)
             .paddingInner(1)
             .round(false)
-            .tile(d3.treemapSquarify);
+            .tile(d3.treemapSquarify)(subtree as d3.HierarchyRectangularNode<TreemapNode>);
 
-        treemapLayout(isolatedSubtree as d3.HierarchyRectangularNode<TreemapNode>);
+        // Restore UIDs on isolated copy from data._uid
+        const isoRoot = subtree as D3Node;
+        isoRoot.each((node: any) => { node.uid = node.data._uid; });
 
-        // Match the perfectly calculated dimensions back to the original permanent React state nodes
-        isolatedSubtree.each((isoNode: any) => {
-            const origNode = active.descendants().find(n => n.uid === isoNode.data._uid);
-            if (origNode) {
-                origNode.x0 = isoNode.x0;
-                origNode.x1 = isoNode.x1;
-                origNode.y0 = isoNode.y0;
-                origNode.y1 = isoNode.y1;
+        // ─── Helpers ────────────────────────────────────────────────────────────
+        const getSectorColor = (node: D3Node): string => {
+            let n = node;
+            while (n.depth > 1 && n.parent) n = n.parent as D3Node;
+            return n.depth === 1 ? colorScaleRef.current(n.data.name) : '#fcfdfc';
+        };
+
+        const baseFill = (d: D3Node) => {
+            if (d.depth === 1 || d.depth === 2) return getSectorColor(d);
+            if (!d.children) return 'rgba(255,255,255,0.6)';
+            return 'transparent';
+        };
+
+        const fmtVal = (v?: number) => !v ? '' : v > 999 ? `€${(v / 1000).toFixed(1)}B` : `€${v}M`;
+
+        const paintFO = (gEl: Element, d: D3Node) => {
+            const g = d3.select(gEl);
+            const w = d.x1 - d.x0, hh = d.y1 - d.y0;
+            const isLeaf = !d.children;
+            const isRoot = d.uid === zoomUidRef.current;
+
+            const foH = g.select<SVGForeignObjectElement>('foreignObject.fo-h');
+            if (!isLeaf && !isRoot && w > 30 && hh > 15) {
+                foH.attr('width', w).attr('height', 24).style('display', null);
+                const el = foH.node();
+                if (el) el.innerHTML = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;align-items:center;padding:0 8px;font-size:10px;font-family:ui-monospace,monospace;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(0,0,0,.6);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border-bottom:1px solid rgba(0,0,0,.1)">${d.data.name}</div>`;
+            } else {
+                foH.style('display', 'none');
+            }
+
+            const foL = g.select<SVGForeignObjectElement>('foreignObject.fo-l');
+            if (isLeaf && w > 35 && hh > 20) {
+                foL.attr('width', w).attr('height', hh).style('display', null);
+                const el = foL.node();
+                if (el) el.innerHTML = `<div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%;display:flex;flex-direction:column;padding:6px;overflow:hidden"><div style="font-size:11px;font-family:sans-serif;font-weight:700;color:rgba(0,0,0,.9);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;line-height:1.2">${d.data.name}</div>${(w > 45 && hh > 30 && d.data.value) ? `<div style="font-size:9px;font-family:ui-monospace,monospace;font-weight:700;color:rgba(0,0,0,.4);margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${fmtVal(d.data.value)}</div>` : ''}</div>`;
+            } else {
+                foL.style('display', 'none');
+            }
+        };
+
+        // ─── Data join ──────────────────────────────────────────────────────────
+        const renderNodes = (isoRoot.descendants() as D3Node[]).filter(n => {
+            const nw = n.x1 - n.x0, nh = n.y1 - n.y0;
+            return n.depth > 0 && !isNaN(nw) && !isNaN(nh) && nw > 0.5 && nh > 0.5;
+        });
+
+        const svg = d3.select(svgRef.current);
+        const sel = svg.selectAll<SVGGElement, D3Node>('g.node').data(renderNodes, (d: D3Node) => d.uid);
+
+        // EXIT — fade out removed nodes
+        sel.exit().transition().duration(DUR / 2).style('opacity', 0).remove();
+
+        // ENTER — create skeleton at target coords (invisible)
+        const entered = sel.enter()
+            .append('g').attr('class', 'node')
+            .style('opacity', 0)
+            .attr('transform', (d: D3Node) => `translate(${d.x0},${d.y0})`);
+
+        entered.append('rect')
+            .attr('stroke', '#000').attr('stroke-width', '1')
+            .attr('shape-rendering', 'crispEdges')
+            .attr('vector-effect', 'non-scaling-stroke');
+        entered.append('foreignObject').attr('class', 'fo-h').style('pointer-events', 'none');
+        entered.append('foreignObject').attr('class', 'fo-l').style('pointer-events', 'none');
+
+        const merged = entered.merge(sel as any);
+
+        // Event handlers (always re-attach cleanly)
+        merged
+            .style('cursor', (d: D3Node) => (!d.children ? 'crosshair' : 'pointer'))
+            .on('click', function (event: MouseEvent, d: D3Node) {
+                event.stopPropagation();
+                if (!d.children) return;
+                const target = d.uid === zoomUidRef.current
+                    ? (parentUidRef.current ?? 'root')
+                    : d.uid;
+                zoomUidRef.current = target;
+                setZoomUid(target);
+            })
+            .on('mouseenter', function (_ev: MouseEvent, d: D3Node) {
+                const bf = baseFill(d);
+                d3.select(this).select('rect').attr('fill',
+                    !d.children ? 'rgba(255,255,255,0.95)' : (d3.color(bf)?.darker(0.15).toString() || bf));
+                if (!d.children) {
+                    onHoverRef.current(startupMapRef.current.get(d.data.id || '') || null);
+                } else {
+                    onHoverRef.current(null, true, d.data.name);
+                }
+            })
+            .on('mouseleave', function (_ev: MouseEvent, d: D3Node) {
+                d3.select(this).select('rect').attr('fill', baseFill(d));
+                onHoverRef.current(null);
+            });
+
+        // Immediately set fill & stroke-opacity (no animation needed for color)
+        merged.select('rect')
+            .attr('fill', baseFill)
+            .attr('stroke-opacity', (d: D3Node) => (!d.children ? '0.2' : '0.1'));
+
+        // Hide FO text during the position transition, show after
+        merged.selectAll('foreignObject').style('opacity', 0);
+
+        // TRANSITION — animate position + size
+        merged.transition().duration(DUR).ease(d3.easeCubicInOut)
+            .style('opacity', 1)
+            .attr('transform', (d: D3Node) => `translate(${d.x0},${d.y0})`)
+            .on('end', function (d: D3Node) {
+                paintFO(this, d);
+                d3.select(this).selectAll('foreignObject').style('opacity', 1);
+            });
+
+        merged.select('rect').transition().duration(DUR).ease(d3.easeCubicInOut)
+            .attr('width', (d: D3Node) => Math.max(0, d.x1 - d.x0))
+            .attr('height', (d: D3Node) => Math.max(0, d.y1 - d.y0));
+
+        // SVG background click → zoom out
+        svg.on('click.bg', (event: MouseEvent) => {
+            if (event.target === svgRef.current && parentUidRef.current !== null) {
+                zoomUidRef.current = parentUidRef.current;
+                setZoomUid(parentUidRef.current);
             }
         });
 
-        const renderNodes = active.descendants().sort((a, b) => a.depth - b.depth);
+    }, [zoomUid, dimensions.w, dimensions.h, fullHierarchy, colorScale]);
 
-        return { activeNode: active, nodesToRender: renderNodes, breadcrumbs: crumbs };
-    }, [fullHierarchy, dimensions, zoomUid]);
-
-    const colorScale = useMemo(() => {
-        const sectors = fullHierarchy.children?.map(d => d.name) || [];
-        return d3.scaleOrdinal<string>()
-            .domain(sectors)
-            .range(['#EAFBDE', '#F9F0FF', '#F0F5FA', '#FFF0F6', '#FEFFE6', '#E6FFFB', '#FFF1F0', '#F5F5F5', '#E6F4FF', '#FCFFE6']);
-    }, [fullHierarchy]);
-
-    const getSectorColor = useCallback((node: D3Node) => {
-        if (!node) return '#fcfdfc';
-        let n = node;
-        while (n.depth > 1 && n.parent) n = n.parent as D3Node;
-        return n.depth === 1 ? colorScale(n.data.name) : '#fcfdfc';
-    }, [colorScale]);
-
-    const formatValue = (value?: number) => {
-        if (!value) return '';
-        return value > 999 ? `€${(value / 1000).toFixed(1)}B` : `€${value}M`;
-    };
-
-    const zoomTo = useCallback((uid: string) => {
-        setZoomUid(uid);
-    }, []);
-
-    if (!dimensions.w || !dimensions.h) return <div ref={containerRef} className="w-full h-full bg-white" />;
+    // Skeleton while dimensions not yet known
+    if (!dimensions.w || !dimensions.h) {
+        return (
+            <div ref={containerRef} className="w-full h-full bg-white flex flex-col">
+                <div className="flex-shrink-0 h-10 border-b border-black/20 bg-[#f8fafc]" />
+                <div className="flex-1 map-container" />
+            </div>
+        );
+    }
 
     return (
         <div ref={containerRef} className="w-full h-full bg-white flex flex-col overflow-hidden relative font-mono text-[#333]">
 
-            {/* --- TOP BREADCRUMB NAVIGATION --- */}
+            {/* Breadcrumb */}
             <div className="flex-shrink-0 h-10 border-b border-black/20 flex items-center px-6 bg-[#f8fafc] text-[11px] font-bold uppercase tracking-widest text-black/40 select-none z-10">
                 {breadcrumbs.map((crumb, i) => (
                     <React.Fragment key={crumb.uid}>
                         <span
-                            className={`cursor-pointer hover:text-violet-accent hover:underline transition-colors ${i === breadcrumbs.length - 1 ? 'text-black font-black pointer-events-none' : ''}`}
-                            onClick={() => zoomTo(crumb.uid)}
+                            className={`transition-colors ${i === breadcrumbs.length - 1 ? 'text-black font-black pointer-events-none' : 'cursor-pointer hover:text-black hover:underline'}`}
+                            onClick={() => { zoomUidRef.current = crumb.uid; setZoomUid(crumb.uid); }}
                         >
                             {crumb.name}
                         </span>
@@ -127,81 +246,9 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                 ))}
             </div>
 
-            {/* --- D3 MAP RENDERER --- */}
-            <div className="flex-1 w-full relative map-container bg-[#fcfdfc] pointer-events-none">
-                <svg
-                    width="100%" height="100%" className="w-full h-full block select-none cursor-pointer pointer-events-auto"
-                    onClick={() => { if (activeNode.parent) zoomTo((activeNode.parent as D3Node).uid); }}
-                >
-                    {nodesToRender.map((node) => {
-                        // We skip depth 0 entirely. The SVG background handles the outermost fill.
-                        if (node.depth === 0) return null;
-
-                        const isLeaf = !node.children || node.children.length === 0;
-                        const isActiveRoot = node.uid === activeNode.uid;
-                        const x0 = node.x0, y0 = node.y0, w = node.x1 - node.x0, h = node.y1 - node.y0;
-
-                        if (isNaN(w) || isNaN(h) || w <= 0.5 || h <= 0.5) return null;
-
-                        // Dynamic Layering: Ensure the active zoom container always paints the true background
-                        let fillColor = 'transparent';
-                        if (isActiveRoot || node.depth === 1) {
-                            fillColor = getSectorColor(node);
-                        } else if (isLeaf) {
-                            fillColor = hoveredNodeId === node.uid ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.6)';
-                        }
-
-                        const transitionStyle = { transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)' };
-
-                        return (
-                            <g key={node.uid} transform={`translate(${x0},${y0})`}
-                                style={{ ...transitionStyle, cursor: isLeaf ? 'crosshair' : 'pointer' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (isLeaf) return; // Leaf nodes do not trigger zoom
-                                    if (isActiveRoot && activeNode.parent) {
-                                        zoomTo((activeNode.parent as D3Node).uid); // Smart Toggle: Zoom out
-                                    } else {
-                                        zoomTo(node.uid); // Zoom in
-                                    }
-                                }}
-                                onMouseEnter={() => { if (isLeaf) { setHoveredNodeId(node.uid); onStartupHover(startups.find(x => x.id === node.data.id) || null); } }}
-                                onMouseLeave={() => { if (isLeaf) { setHoveredNodeId(null); onStartupHover(null); } }}
-                            >
-                                <rect
-                                    width={w} height={h}
-                                    fill={fillColor}
-                                    stroke="#000" strokeWidth="1" strokeOpacity={isLeaf ? "0.2" : "0.1"}
-                                    shapeRendering="crispEdges"
-                                    style={transitionStyle}
-                                />
-                                {/* Headers for Parents (Includes the active node so it never disappears) */}
-                                {!isLeaf && w > 30 && h > 15 && (
-                                    <foreignObject width={w} height={24} className="pointer-events-none" style={transitionStyle}>
-                                        <div className="w-full h-full flex items-center px-2 text-[10px] font-mono font-bold uppercase tracking-widest text-black/60 truncate border-b border-black/10">
-                                            {node.data.name}
-                                        </div>
-                                    </foreignObject>
-                                )}
-                                {/* Startup Details for Leaves */}
-                                {isLeaf && w > 35 && h > 20 && (
-                                    <foreignObject width={w} height={h} className="pointer-events-none" style={transitionStyle}>
-                                        <div className="w-full h-full flex flex-col p-1.5 overflow-hidden">
-                                            <div className="truncate font-sans font-bold text-[11px] text-black/90 leading-tight">
-                                                {node.data.name}
-                                            </div>
-                                            {w > 45 && h > 30 && (
-                                                <div className="truncate font-mono text-[9px] font-bold text-black/40 mt-0.5">
-                                                    {formatValue(node.data.value)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </foreignObject>
-                                )}
-                            </g>
-                        );
-                    })}
-                </svg>
+            {/* D3-managed SVG — children rendered entirely by D3, not React */}
+            <div className="flex-1 w-full relative map-container bg-[#fcfdfc]">
+                <svg ref={svgRef} width="100%" height="100%" className="w-full h-full block select-none" />
             </div>
         </div>
     );
