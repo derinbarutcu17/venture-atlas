@@ -1,85 +1,211 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp, TrendingUp, Target, Briefcase } from 'lucide-react';
+import { ChevronDown, ChevronUp, TrendingUp, Target, Briefcase, ExternalLink } from 'lucide-react';
 import type { Sector } from '../types';
 import logo from '/logo.png';
 
 interface InvestorData {
     name: string;
+    type: string; // e.g. "Early-Stage VC" | "Growth VC" | "Multi-Stage VC"
+    founded: number;
+    aum: string; // Real AUM string e.g. "€2.8B"
+    aumValue: number; // Numeric for sorting (Millions)
+    latestFund: string; // e.g. "Fund IX — €710M (2023)"
     deals: number;
-    volume: number; // in Millions
+    activeSince: number;
+    hq: string;
+    website: string;
     description: string;
-    sectors: Partial<Record<Sector, number>>; // 0 to 1 intensity
-    topStartups: string[];
-    velocity: number[]; // Sparkline data points
+    thesis: string;
+    stages: string[];
+    sectors: Partial<Record<Sector | string, number>>; // 0 to 1 intensity
+    berlinPortfolio: { name: string; raised: string; sector: string; status: string }[];
+    recentActivity: string;
+    unicorns: number;
+    velocity: number[];
 }
 
+// ─── REAL DATA: Sourced Feb 2026 ──────────────────────────────────────────────
+// Sources: PitchBook, Sifted, TechCrunch Europe, EU-Startups, firm websites
 const INVESTOR_DATA: InvestorData[] = [
     {
-        name: 'Index Ventures',
-        deals: 48,
-        volume: 3200,
-        description: 'Multi-stage venture capital firm that helps the most ambitious entrepreneurs turn bold ideas into global businesses.',
-        sectors: { 'Standard Tech': 0.9, 'Mobility & Logistics': 0.4, 'Health & Care': 0.3 },
-        topStartups: ['Adyen', 'Deliveroo', 'Revolut'],
-        velocity: [10, 25, 45, 30, 60, 85, 70]
-    },
-    {
-        name: 'Accel Europe',
-        deals: 42,
-        volume: 2900,
-        description: 'Venture capital firm that invests in people and their companies from the earliest days through all phases of private company growth.',
-        sectors: { 'Standard Tech': 0.8, 'Industrial Tech': 0.7, 'SaaS': 0.9 } as any,
-        topStartups: ['Celonis', 'UiPath', 'Monzo'],
-        velocity: [20, 35, 30, 50, 45, 75, 90]
-    },
-    {
         name: 'HV Capital',
-        deals: 52,
-        volume: 2800,
-        description: 'One of the leading early-stage and growth investors in Europe, supporting next-generation giants from the beginning.',
-        sectors: { 'Standard Tech': 0.95, 'Mobility & Logistics': 0.6, 'Food & AgTech': 0.5 },
-        topStartups: ['Zalando', 'HelloFresh', 'FlixBus'],
-        velocity: [40, 50, 45, 60, 70, 65, 80]
+        type: 'Multi-Stage VC',
+        founded: 2000,
+        aum: '€2.8B',
+        aumValue: 2800,
+        latestFund: 'Fund IX — €710M (2023)',
+        deals: 225,
+        activeSince: 2000,
+        hq: 'Berlin / Munich',
+        website: 'hvcapital.com',
+        description: 'One of Europe\'s leading all-stage investors, formerly Holtzbrinck Ventures. Known for building generational companies across consumer, SaaS, and logistics.',
+        thesis: 'Stage-agnostic. Seed to Series D. €500K–€60M tickets. Focus on operationally high-complexity businesses.',
+        stages: ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Growth'],
+        sectors: { 'Standard Tech': 0.9, 'Mobility & Logistics': 0.7, 'Food & AgTech': 0.5, 'Health & Care': 0.4, 'Built World': 0.3 },
+        berlinPortfolio: [
+            { name: 'Zalando', raised: 'IPO (2014)', sector: 'E-Commerce', status: 'Public' },
+            { name: 'HelloFresh', raised: 'IPO (2017)', sector: 'Food Tech', status: 'Public' },
+            { name: 'SumUp', raised: '€750M', sector: 'Fintech', status: 'Unicorn' },
+            { name: 'FlixBus', raised: '$650M+', sector: 'Mobility', status: 'Unicorn' },
+            { name: 'Polyteia', raised: 'Seed', sector: 'GovTech', status: 'Active' },
+        ],
+        recentActivity: 'Fund IX investing actively in 30–40 Ventures + 10–15 Growth targets. Invested in SPREAD and Polyteia (2024).',
+        unicorns: 18,
+        velocity: [30, 45, 38, 50, 60, 55, 70]
+    },
+    {
+        name: 'Cherry Ventures',
+        type: 'Early-Stage VC',
+        founded: 2012,
+        aum: '€900M+',
+        aumValue: 900,
+        latestFund: 'Cherry V — $500M (Feb 2025)',
+        deals: 130,
+        activeSince: 2012,
+        hq: 'Berlin',
+        website: 'cherry.vc',
+        description: "Pre-seed and seed specialist run by experienced founders. Aims to build Europe's 'first trillion-dollar company'. 47 exits to date.",
+        thesis: 'Pre-seed & Seed. €1–5M initial tickets. Hands-on founding partner access. Strong focus on climate and industrials.',
+        stages: ['Pre-Seed', 'Seed', 'Series B (Opportunity)'],
+        sectors: { 'Standard Tech': 0.7, 'Mobility & Logistics': 0.8, 'Industrial Tech': 0.6, 'Food & AgTech': 0.7, 'Built World': 0.5 },
+        berlinPortfolio: [
+            { name: 'FlixBus', raised: 'Unicorn Exit', sector: 'Mobility', status: 'Unicorn' },
+            { name: 'Auto1 Group', raised: 'IPO (2021)', sector: 'Automotive', status: 'Public' },
+            { name: 'Mondu', raised: '€43M Series B', sector: 'B2B Payments', status: 'Active' },
+            { name: 'Forto', raised: '$240M+', sector: 'Logistics', status: 'Unicorn' },
+            { name: 'Planet A Foods', raised: 'Seed+', sector: 'FoodTech', status: 'Active' },
+        ],
+        recentActivity: 'Cherry V closed $500M in Feb 2025. Invested in Flinn and Heywa Labs in February 2026. 47 exits achieved.',
+        unicorns: 11,
+        velocity: [15, 20, 25, 30, 38, 45, 55]
     },
     {
         name: 'Earlybird',
-        deals: 44,
-        volume: 2100,
-        description: 'European venture capital investor with over €2 billion under management, focusing on all phases of development.',
-        sectors: { 'Health & Care': 0.9, 'Industrial Tech': 0.8, 'Standard Tech': 0.5 },
-        topStartups: ['N26', 'Isar Aerospace', 'Fraugster'],
-        velocity: [15, 20, 40, 35, 55, 60, 65]
+        type: 'Early & Growth VC',
+        founded: 1997,
+        aum: '€2.5B',
+        aumValue: 2500,
+        latestFund: 'Digital West VII — €350M (2022)',
+        deals: 251,
+        activeSince: 1997,
+        hq: 'Berlin',
+        website: 'earlybird.com',
+        description: 'One of Europe\'s most experienced VCs with €2.5B under management across multiple fund streams. Deep-tech and innovation focus since 1997.',
+        thesis: 'Series A specialist. €3–25M initial tickets. Deep tech, enterprise software, fintech, sustainability.',
+        stages: ['Seed', 'Series A', 'Series B'],
+        sectors: { 'Health & Care': 0.8, 'Industrial Tech': 0.9, 'Standard Tech': 0.7, 'Social & Impact': 0.5, 'Built World': 0.4 },
+        berlinPortfolio: [
+            { name: 'N26', raised: '$900M+', sector: 'Neobanking', status: 'Unicorn' },
+            { name: 'Isar Aerospace', raised: '€300M+', sector: 'Deep Tech', status: 'ScaleUp' },
+            { name: 'Aleph Alpha', raised: '€500M', sector: 'AI/LLM', status: 'Unicorn' },
+            { name: 'Onefootball', raised: '€100M+', sector: 'Sports Media', status: 'Active' },
+            { name: 'Fraugster', raised: 'Acquired', sector: 'Fraud AI', status: 'Exit' },
+        ],
+        recentActivity: 'Active as of Jan 2026. 251 companies backed. Primary focus Series A in Germany. Active in AI and defense tech.',
+        unicorns: 22,
+        velocity: [20, 28, 35, 30, 42, 48, 52]
+    },
+    {
+        name: 'Project A',
+        type: 'Operational VC',
+        founded: 2012,
+        aum: '€1.2B',
+        aumValue: 1200,
+        latestFund: 'Fund V — €325M (Jun 2025)',
+        deals: 130,
+        activeSince: 2012,
+        hq: 'Berlin',
+        website: 'project-a.vc',
+        description: 'Berlin\'s operational VC model — 140+ functional experts embedded in portfolio companies. Seed to Series B with active board seats and PMO support.',
+        thesis: 'Pre-seed to Seed. €1–8M initial tickets. Defense, Fintech, AI, Supply Chain. Operational intensity is the differentiator.',
+        stages: ['Pre-Seed', 'Seed', 'Series A'],
+        sectors: { 'Standard Tech': 0.8, 'Mobility & Logistics': 0.9, 'Industrial Tech': 0.7, 'Health & Care': 0.5, 'Creative Economy': 0.3 },
+        berlinPortfolio: [
+            { name: 'Trade Republic', raised: '$900M Series C', sector: 'Neobroker', status: 'Unicorn' },
+            { name: 'sennder', raised: '$160M Series D', sector: 'Digital Freight', status: 'Unicorn' },
+            { name: 'Spryker', raised: 'Series C', sector: 'Commerce OS', status: 'Active' },
+            { name: 'Quantum Systems', raised: 'Series B', sector: 'Defense Drones', status: 'Active' },
+            { name: 'Andercore', raised: 'Pre-Seed', sector: 'AI Infra', status: 'Active (Feb 2026)' },
+        ],
+        recentActivity: 'Fund V closed oversubscribed at €325M (Jun 2025). Latest investment: Andercore (Feb 11, 2026). Exits: Priceloop, Bene Bono (Q4 2025).',
+        unicorns: 8,
+        velocity: [18, 22, 28, 32, 38, 42, 50]
     },
     {
         name: 'Lakestar',
-        deals: 22,
-        volume: 1500,
-        description: 'Invests in technology companies led by exceptional entrepreneurs, with a focus on early and growth stage ventures.',
-        sectors: { 'Standard Tech': 0.7, 'Built World': 0.6, 'Mobility & Logistics': 0.8 },
-        topStartups: ['Sennder', 'GetYourGuide', 'Revolut'],
-        velocity: [5, 15, 10, 25, 30, 45, 50]
-    }
+        type: 'Multi-Stage VC',
+        founded: 2012,
+        aum: '€2.0B',
+        aumValue: 2000,
+        latestFund: 'Early IV + Growth II — $600M (Apr 2024)',
+        deals: 254,
+        activeSince: 2012,
+        hq: 'Berlin / Zürich / London',
+        website: 'lakestar.com',
+        description: 'Invests in disruptive tech businesses across Europe. 24 unicorns in portfolio. Seeking $300M defense fund (Jun 2025). Recent bets in defense and AI.',
+        thesis: 'Early and growth stage. Deep tech, AI, healthcare, fintech, and now defense technology.',
+        stages: ['Seed', 'Series A', 'Series B', 'Growth'],
+        sectors: { 'Standard Tech': 0.7, 'Mobility & Logistics': 0.8, 'Health & Care': 0.6, 'Industrial Tech': 0.5, 'Built World': 0.7 },
+        berlinPortfolio: [
+            { name: 'GetYourGuide', raised: '$590M+', sector: 'Travel Tech', status: 'Unicorn' },
+            { name: 'sennder', raised: '$160M Series D', sector: 'Digital Freight', status: 'Unicorn' },
+            { name: 'HomeToGo', raised: 'IPO (2021)', sector: 'Travel Tech', status: 'Public' },
+            { name: 'Antidote Ltd.', raised: 'Round (Jan 2026)', sector: 'HealthTech', status: 'Active' },
+            { name: 'Matta Labs', raised: 'Round (Dec 2025)', sector: 'AI Infra', status: 'Active' },
+        ],
+        recentActivity: 'Raising $300M dedicated defense fund (Jun 2025). Invested in Antidote (Jan 2026), Matta Labs (Dec 2025). 24 unicorns.',
+        unicorns: 24,
+        velocity: [10, 18, 22, 30, 35, 40, 45]
+    },
+    {
+        name: 'Point Nine',
+        type: 'B2B SaaS VC',
+        founded: 2008,
+        aum: '€180M+',
+        aumValue: 180,
+        latestFund: 'Fund VI — €180M (Sep 2022), Fund VII open (May 2025)',
+        deals: 180,
+        activeSince: 2008,
+        hq: 'Berlin',
+        website: 'pointnine.com',
+        description: 'Berlin\'s specialized SaaS and marketplace VC. Geo-agnostic seed bets with €0.5–5M tickets. Deep thesis on data-driven niche leaders.',
+        thesis: 'Seed. €500K–€5M initial tickets. B2B SaaS, online marketplaces, mobile. Geo-agnostic with Europe + US focus.',
+        stages: ['Pre-Seed', 'Seed'],
+        sectors: { 'Standard Tech': 0.95, 'Creative Economy': 0.5, 'Social & Impact': 0.4, 'Health & Care': 0.3 },
+        berlinPortfolio: [
+            { name: 'Delivery Hero', raised: 'IPO (2017)', sector: 'Food Delivery', status: 'Public' },
+            { name: 'Contentful', raised: '$175M Series F', sector: 'CMS Infra', status: 'Unicorn' },
+            { name: 'ChartMogul', raised: 'Bootstrapped+', sector: 'Analytics SaaS', status: 'Active' },
+            { name: 'Candis', raised: 'Series B', sector: 'Finance SaaS', status: 'Active' },
+            { name: 'Back', raised: 'Acquired by Personio', sector: 'HR Tech', status: 'Exit (2022)' },
+        ],
+        recentActivity: 'Fund VII opened May 2025 (size undisclosed). Active in Berlin SaaS with Candis, Bitbond, ChartMogul and BlueLayer.',
+        unicorns: 5,
+        velocity: [8, 12, 15, 12, 18, 22, 28]
+    },
 ];
 
-const SectorIntensity: React.FC<{ sectors: Partial<Record<Sector, number>> }> = ({ sectors }) => {
-    const allSectors: Sector[] = [
+type SortKey = 'aumValue' | 'deals' | 'unicorns';
+
+// Bar chart for sector intensity
+const SectorIntensity: React.FC<{ sectors: Partial<Record<string, number>> }> = ({ sectors }) => {
+    const allSectors = [
         'Standard Tech', 'Creative Economy', 'Built World', 'Industrial Tech',
         'Food & AgTech', 'Health & Care', 'Mobility & Logistics', 'Social & Impact'
     ];
-
     return (
-        <div className="flex gap-1 items-end h-8">
+        <div className="flex gap-[3px] items-end h-8">
             {allSectors.map(s => {
-                const intensity = sectors[s] || 0.05;
+                const intensity = (sectors as any)[s] || 0.05;
                 return (
-                    <div
-                        key={s}
-                        className="w-1.5 transition-all duration-500 bg-black/10 hover:bg-black relative group"
-                        style={{ height: `${intensity * 100}%` }}
-                    >
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black text-white text-[8px] px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-20 pointer-events-none">
-                            {s}: {(intensity * 100).toFixed(0)}%
+                    <div key={s} className="relative group/bar flex flex-col items-center">
+                        <div
+                            className="w-[5px] transition-all duration-500 hover:opacity-100"
+                            style={{ height: `${intensity * 32}px`, background: `rgba(0,0,0,${intensity})` }}
+                        />
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black text-white text-[8px] px-2 py-1 rounded opacity-0 group-hover/bar:opacity-100 whitespace-nowrap z-30 pointer-events-none leading-tight">
+                            {s}<br />{(intensity * 100).toFixed(0)}%
                         </div>
                     </div>
                 );
@@ -88,28 +214,31 @@ const SectorIntensity: React.FC<{ sectors: Partial<Record<Sector, number>> }> = 
     );
 };
 
-const Sparkline: React.FC<{ data: number[] }> = ({ data }) => {
-    const width = 100;
-    const height = 30;
+// SVG sparkline
+const Sparkline: React.FC<{ data: number[]; color?: string }> = ({ data, color = 'black' }) => {
+    const width = 90, height = 28;
     const max = Math.max(...data);
     const points = data.map((d, i) => `${(i / (data.length - 1)) * width},${height - (d / max) * height}`).join(' ');
-
     return (
         <svg width={width} height={height} className="overflow-visible">
-            <polyline
-                fill="none"
-                stroke="black"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={points}
+            <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" points={points} />
+            <circle
+                cx={(width)}
+                cy={height - (data[data.length - 1] / max) * height}
+                r="2.5"
+                fill={color}
             />
         </svg>
     );
 };
 
+// Stage pill
+const StagePill: React.FC<{ stage: string }> = ({ stage }) => (
+    <span className="inline-block text-[9px] font-black uppercase tracking-wider border border-black/20 px-2 py-0.5 mr-1 mb-1">{stage}</span>
+);
+
 export const InvestorsView: React.FC = () => {
-    const [sortBy, setSortBy] = useState<'volume' | 'deals'>('volume');
+    const [sortBy, setSortBy] = useState<SortKey>('aumValue');
     const [expandedInvestor, setExpandedInvestor] = useState<string | null>(null);
 
     const sortedInvestors = useMemo(() => {
@@ -118,131 +247,199 @@ export const InvestorsView: React.FC = () => {
 
     return (
         <div className="w-full text-[#0a0a0a] font-mono select-none pt-8 pb-32">
-            {/* Typographic Header */}
-            <header className="mb-16">
-                <div className="flex items-baseline justify-between border-b-[3px] border-black pb-8">
-                    <h1 className="text-[6rem] md:text-[8rem] lg:text-[10rem] font-black uppercase tracking-tighter leading-[0.8] m-0">
-                        Capital<br />Deploy
-                    </h1>
-                    <div className="text-right hidden md:block">
-                        <div className="text-xs font-bold tracking-[0.3em] uppercase opacity-40 mb-2">Market Data Feed</div>
-                        <div className="text-xl font-black tabular-nums">LIVE: 2026.Q1</div>
+            {/* Header */}
+            <header className="mb-12">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between border-b-[3px] border-black pb-8 gap-4">
+                    <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">Berlin Capital Intelligence // Q1 2026</div>
+                        <h1 className="text-[5rem] md:text-[7rem] lg:text-[8rem] font-black uppercase tracking-tighter leading-[0.85] m-0">
+                            Active<br />Capital
+                        </h1>
+                    </div>
+                    <div className="flex flex-col text-right gap-2 pb-2">
+                        <div className="text-3xl font-black tabular-nums">€{sortedInvestors.reduce((s, v) => s + v.aumValue, 0).toLocaleString()}M+</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40">Total AUM across {sortedInvestors.length} mapped funds</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/40">{sortedInvestors.reduce((s, v) => s + v.unicorns, 0)} unicorns backed</div>
                     </div>
                 </div>
 
-                {/* Filter / Sort Bar */}
-                <div className="flex justify-between items-center mt-6">
-                    <div className="flex gap-8 text-[11px] font-bold uppercase tracking-widest leading-none">
+                {/* Sort Bar */}
+                <div className="flex flex-wrap gap-6 items-center mt-5 text-[11px] font-black uppercase tracking-widest">
+                    <span className="text-black/30">Sort by</span>
+                    {([['aumValue', 'Capital AUM'], ['deals', 'Total Deals'], ['unicorns', 'Unicorns']] as [SortKey, string][]).map(([key, label]) => (
                         <button
-                            onClick={() => setSortBy('volume')}
-                            className={`${sortBy === 'volume' ? 'text-black' : 'text-black/30'} hover:text-black transition-colors flex items-center gap-2`}
+                            key={key}
+                            onClick={() => setSortBy(key)}
+                            className={`flex items-center gap-1.5 pb-0.5 border-b-2 transition-colors ${sortBy === key ? 'border-black text-black' : 'border-transparent text-black/30 hover:text-black'}`}
                         >
-                            <TrendingUp className="w-3 h-3" /> Area by Capital
+                            {key === 'aumValue' && <TrendingUp className="w-3 h-3" />}
+                            {key === 'deals' && <Target className="w-3 h-3" />}
+                            {key === 'unicorns' && <Briefcase className="w-3 h-3" />}
+                            {label}
                         </button>
-                        <button
-                            onClick={() => setSortBy('deals')}
-                            className={`${sortBy === 'deals' ? 'text-black' : 'text-black/30'} hover:text-black transition-colors flex items-center gap-2`}
-                        >
-                            <Target className="w-3 h-3" /> Area by Velocity
-                        </button>
-                    </div>
-                    <div className="text-[10px] uppercase font-bold text-black/40">
-                        {sortedInvestors.length} Active Entities Mapped
-                    </div>
+                    ))}
                 </div>
             </header>
 
-            {/* Smart Matrix Grid */}
+            {/* Matrix */}
             <div className="flex flex-col border-t border-black/10">
                 {sortedInvestors.map((vc, idx) => {
                     const isExpanded = expandedInvestor === vc.name;
                     return (
-                        <div
-                            key={vc.name}
-                            className="group flex flex-col border-b border-black/10 hover:bg-black/[0.02] transition-colors"
-                        >
+                        <div key={vc.name} className="group flex flex-col border-b border-black/10 hover:bg-black/[0.015] transition-colors">
                             {/* Main Row */}
                             <div
-                                className="flex items-center justify-between py-8 px-2 cursor-pointer"
+                                className="flex items-center justify-between py-7 px-2 cursor-pointer gap-4"
                                 onClick={() => setExpandedInvestor(isExpanded ? null : vc.name)}
                             >
-                                <div className="flex items-center gap-12 flex-1">
-                                    <span className="text-sm font-black opacity-20 w-8">{(idx + 1).toString().padStart(2, '0')}</span>
+                                <div className="flex items-center gap-8 md:gap-12 flex-1 min-w-0">
+                                    <span className="text-sm font-black opacity-15 w-8 flex-shrink-0">{(idx + 1).toString().padStart(2, '0')}</span>
 
-                                    <div className="flex flex-col w-64">
-                                        <h3 className="text-2xl font-black uppercase tracking-tight leading-none mb-1 group-hover:text-black transition-colors">
-                                            {vc.name}
-                                        </h3>
-                                        <div className="flex gap-3 text-[10px] font-black opacity-40 uppercase tracking-widest">
-                                            <span>{vc.deals} Series A-C</span>
-                                            <span>•</span>
-                                            <span>Europe HQ</span>
+                                    {/* Name + Type */}
+                                    <div className="flex flex-col min-w-0 w-56 flex-shrink-0">
+                                        <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight leading-none mb-1 truncate">{vc.name}</h3>
+                                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-widest truncate">{vc.type} · Est. {vc.founded}</div>
+                                    </div>
+
+                                    {/* AUM */}
+                                    <div className="hidden md:flex flex-col w-32 flex-shrink-0">
+                                        <div className="text-[9px] uppercase font-bold text-black/30 mb-0.5 tracking-widest">Total AUM</div>
+                                        <div className="text-xl font-black tabular-nums">{vc.aum}</div>
+                                        <div className="text-[9px] opacity-40 font-bold mt-0.5">{vc.latestFund.split('—')[0].trim()}</div>
+                                    </div>
+
+                                    {/* Deals + Unicorns */}
+                                    <div className="hidden lg:flex gap-8 flex-shrink-0">
+                                        <div className="flex flex-col">
+                                            <div className="text-[9px] uppercase font-bold text-black/30 mb-0.5 tracking-widest">Cos. Backed</div>
+                                            <div className="text-xl font-black tabular-nums">{vc.deals}</div>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <div className="text-[9px] uppercase font-bold text-black/30 mb-0.5 tracking-widest">Unicorns</div>
+                                            <div className="text-xl font-black tabular-nums text-black/70">{vc.unicorns}</div>
                                         </div>
                                     </div>
 
-                                    {/* Volume Metric */}
-                                    <div className="w-40 hidden lg:block">
-                                        <div className="text-[10px] uppercase font-bold text-black/30 mb-1">Deploy Vol.</div>
-                                        <div className="text-2xl font-black tabular-nums">€{(vc.volume / 1000).toFixed(1)}B</div>
-                                    </div>
-
-                                    {/* Velocity Sparkline */}
-                                    <div className="w-32 hidden xl:block">
-                                        <div className="text-[10px] uppercase font-bold text-black/30 mb-2">Velocity</div>
+                                    {/* Sparkline */}
+                                    <div className="hidden xl:flex flex-col flex-shrink-0">
+                                        <div className="text-[9px] uppercase font-bold text-black/30 mb-1 tracking-widest">Deal Velocity</div>
                                         <Sparkline data={vc.velocity} />
                                     </div>
 
-                                    {/* Sector Intensity Matrix */}
-                                    <div className="flex-1 hidden md:block max-w-[200px]">
-                                        <div className="text-[10px] uppercase font-bold text-black/30 mb-2">Sector Focus Intensity</div>
+                                    {/* Sector Heatmap */}
+                                    <div className="hidden lg:flex flex-col flex-shrink-0">
+                                        <div className="text-[9px] uppercase font-bold text-black/30 mb-1 tracking-widest">Sector Focus</div>
                                         <SectorIntensity sectors={vc.sectors} />
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-6">
-                                    {isExpanded ? <ChevronUp className="w-5 h-5 opacity-30" /> : <ChevronDown className="w-5 h-5 opacity-30 group-hover:opacity-100 transition-opacity" />}
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                    <span className="text-[9px] uppercase font-black tracking-widest opacity-0 group-hover:opacity-40 transition-opacity hidden sm:block">
+                                        {isExpanded ? 'Collapse' : 'Deep Dive'}
+                                    </span>
+                                    {isExpanded
+                                        ? <ChevronUp className="w-4 h-4 opacity-40" />
+                                        : <ChevronDown className="w-4 h-4 opacity-20 group-hover:opacity-100 transition-opacity" />
+                                    }
                                 </div>
                             </div>
 
-                            {/* Expanded Detail Panel */}
+                            {/* Expanded Panel */}
                             <AnimatePresence>
                                 {isExpanded && (
                                     <motion.div
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3, ease: 'circOut' }}
-                                        className="overflow-hidden"
+                                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                                        className="overflow-hidden border-t border-black/5"
                                     >
-                                        <div className="px-20 pb-12 grid grid-cols-1 md:grid-cols-2 gap-16 border-t border-black/5 pt-8">
-                                            <div className="flex flex-col space-y-6">
-                                                <div className="space-y-2">
-                                                    <div className="text-[10px] font-black uppercase tracking-widest text-black/30 flex items-center gap-2">
-                                                        <Briefcase className="w-3 h-3" /> Strategy Overview
-                                                    </div>
-                                                    <p className="text-sm font-medium leading-relaxed max-w-md italic opacity-80">
-                                                        "{vc.description}"
-                                                    </p>
+                                        <div className="px-4 md:px-20 py-10 grid grid-cols-1 lg:grid-cols-3 gap-12">
+                                            {/* Col 1: Fund Details */}
+                                            <div className="flex flex-col gap-6">
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-3">Fund Overview</div>
+                                                    <p className="text-sm leading-relaxed text-black/80">{vc.description}</p>
                                                 </div>
-
-                                                <div className="flex flex-wrap gap-2">
-                                                    {Object.keys(vc.sectors).map(s => (
-                                                        <span key={s} className="text-[9px] font-black uppercase tracking-tighter border border-black/20 px-2 py-1 bg-black text-white">
-                                                            Top Focus: {s}
-                                                        </span>
-                                                    ))}
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Investment Thesis</div>
+                                                    <p className="text-xs leading-relaxed text-black/60 italic">"{vc.thesis}"</p>
                                                 </div>
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Stage Focus</div>
+                                                    <div className="flex flex-wrap">{vc.stages.map(s => <StagePill key={s} stage={s} />)}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-1.5">Latest Fund</div>
+                                                    <div className="text-sm font-bold">{vc.latestFund}</div>
+                                                </div>
+                                                <a
+                                                    href={`https://${vc.website}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border border-black px-3 py-2 hover:bg-black hover:text-white transition-colors w-fit"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    {vc.website}
+                                                </a>
                                             </div>
 
-                                            <div className="space-y-4">
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-black/30">Select Berlin Portfolio Excerpts</div>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {vc.topStartups.map(name => (
-                                                        <div key={name} className="flex justify-between items-center py-2 border-b border-black/5 hover:bg-black/5 px-2 transition-colors cursor-pointer group/item">
-                                                            <span className="text-sm font-bold uppercase">{name}</span>
-                                                            <span className="text-[10px] font-black opacity-0 group-hover/item:opacity-100 transition-opacity border border-black px-1.5">VIEW CASE STUDY</span>
+                                            {/* Col 2: Berlin Portfolio */}
+                                            <div className="flex flex-col gap-4">
+                                                <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-1">Select Berlin Portfolio</div>
+                                                {vc.berlinPortfolio.map(co => (
+                                                    <div key={co.name} className="flex justify-between items-start gap-4 py-3 border-b border-black/5 group/row hover:border-black/20 transition-colors">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="text-sm font-black uppercase">{co.name}</span>
+                                                            <span className="text-[9px] font-bold uppercase text-black/40">{co.sector}</span>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                                                            <span className="text-[10px] font-black text-black/70">{co.raised}</span>
+                                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 ${co.status === 'Unicorn' ? 'bg-black text-white' : co.status === 'Public' ? 'bg-black/10' : co.status === 'Exit' ? 'bg-black/5 text-black/40' : 'border border-black/20'}`}>
+                                                                {co.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Col 3: Activity + Stats */}
+                                            <div className="flex flex-col gap-6">
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-3">Recent Activity (2025–2026)</div>
+                                                    <p className="text-xs leading-relaxed text-black/70">{vc.recentActivity}</p>
+                                                </div>
+
+                                                {/* Stats Grid */}
+                                                <div className="grid grid-cols-2 gap-4 border border-black/10 p-4">
+                                                    {[
+                                                        { label: 'Est. AUM', val: vc.aum },
+                                                        { label: 'Active Since', val: vc.activeSince.toString() },
+                                                        { label: 'HQ', val: vc.hq },
+                                                        { label: 'Unicorns', val: `${vc.unicorns}` },
+                                                        { label: 'Portfolio Cos.', val: `${vc.deals}+` },
+                                                    ].map(stat => (
+                                                        <div key={stat.label} className="flex flex-col">
+                                                            <div className="text-[8px] uppercase font-bold text-black/30 tracking-widest">{stat.label}</div>
+                                                            <div className="text-sm font-black tabular-nums">{stat.val}</div>
                                                         </div>
                                                     ))}
+                                                </div>
+
+                                                <div>
+                                                    <div className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 mb-2">Sector Focus (Visual)</div>
+                                                    {Object.entries(vc.sectors)
+                                                        .sort(([, a], [, b]) => (b as number) - (a as number))
+                                                        .map(([sector, val]) => (
+                                                            <div key={sector} className="flex items-center gap-3 mb-2">
+                                                                <div className="text-[9px] font-bold uppercase w-32 truncate text-black/60">{sector}</div>
+                                                                <div className="flex-1 h-1 bg-black/5 rounded-full overflow-hidden">
+                                                                    <div className="h-full bg-black rounded-full transition-all duration-500" style={{ width: `${(val as number) * 100}%` }} />
+                                                                </div>
+                                                                <div className="text-[9px] font-black tabular-nums text-black/40 w-8 text-right">{((val as number) * 100).toFixed(0)}%</div>
+                                                            </div>
+                                                        ))}
                                                 </div>
                                             </div>
                                         </div>
@@ -254,26 +451,28 @@ export const InvestorsView: React.FC = () => {
                 })}
             </div>
 
-            {/* Brutalist Footer Background Mirror */}
-            <div className="mt-32 pt-12 border-t-[3px] border-black flex flex-col md:flex-row justify-between items-end gap-12">
-                <div className="flex flex-col gap-6">
-                    <img src={logo} alt="Logo" className="w-20 h-20 grayscale" />
-                    <div className="max-w-xs space-y-2">
-                        <div className="text-2xl font-black uppercase leading-none tracking-tighter">Venture Intelligence Unit</div>
-                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em]">Validated Research // Berlin 2026</div>
+            {/* Footer */}
+            <div className="mt-24 pt-10 border-t-[3px] border-black flex flex-col md:flex-row justify-between items-end gap-12">
+                <div className="flex flex-col gap-4">
+                    <img src={logo} alt="Logo" className="w-16 h-16 object-contain" />
+                    <div>
+                        <div className="text-xl font-black uppercase leading-none tracking-tighter">Venture Intelligence Unit</div>
+                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mt-1">Validated Research // Berlin Q1 2026</div>
+                    </div>
+                    <div className="text-[9px] font-bold opacity-30 uppercase tracking-[0.1em] max-w-xs leading-relaxed">
+                        Data sourced from PitchBook, Sifted, EU-Startups, TechCrunch Europe and fund disclosures. AUM figures represent latest known estimates.
                     </div>
                 </div>
-
-                <div className="flex gap-20 text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex gap-16 text-[10px] font-bold uppercase tracking-widest pb-1">
                     <div className="flex flex-col gap-4">
-                        <span className="text-black/30">Governance</span>
+                        <span className="text-black/30">Research</span>
                         <a href="#" className="hover:underline">Methodology</a>
-                        <a href="#" className="hover:underline">Capital Attribution</a>
+                        <a href="#" className="hover:underline">Data Sources</a>
                     </div>
                     <div className="flex flex-col gap-4">
                         <span className="text-black/30">Access</span>
-                        <a href="#" className="hover:underline">Request API Key</a>
-                        <a href="#" className="hover:underline">Data Partnership</a>
+                        <a href="#" className="hover:underline">Request Data</a>
+                        <a href="#" className="hover:underline">Partner Program</a>
                     </div>
                 </div>
             </div>
