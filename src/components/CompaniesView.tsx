@@ -4,6 +4,7 @@ import type { Startup, Sector } from '../types';
 interface CompaniesViewProps {
     startups: Startup[];
     searchTerm: string;
+    onStartupClick: (startup: Startup) => void;
 }
 
 // Grouping logic for the specific design layout
@@ -31,7 +32,7 @@ const SECTOR_ORDER: Sector[] = [
     'Social & Impact'
 ];
 
-export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTerm }) => {
+export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTerm, onStartupClick }) => {
     // Accordion state: track which vertical is expanded. Format: "SectorName|VerticalName"
     const [expandedVertical, setExpandedVertical] = useState<string | null>(null);
 
@@ -137,7 +138,13 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
                                             {isExpanded && (
                                                 <div className="mt-2 mb-4 pl-3 border-l-2 border-black/10 flex flex-col space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar">
                                                     {vertical.startups.map(s => (
-                                                        <div key={s.id} className="text-xs font-medium opacity-80 hover:opacity-100 hover:text-black cursor-pointer truncate transition-opacity flex justify-between items-baseline">
+                                                        <div key={s.id}
+                                                            className="text-xs font-medium opacity-80 hover:opacity-100 hover:text-black cursor-pointer truncate transition-opacity flex justify-between items-baseline"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onStartupClick(s);
+                                                            }}
+                                                        >
                                                             <span className="truncate pr-4">{s.name}</span>
                                                             <span className="tabular-nums opacity-60 font-bold whitespace-nowrap">€{s.funding >= 1000 ? (s.funding / 1000).toFixed(1) + 'B' : s.funding + 'M'}</span>
                                                         </div>
