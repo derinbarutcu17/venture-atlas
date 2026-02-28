@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { Startup } from '../types';
 import { transformStartupsToHierarchy, type TreemapNode } from '../data/transformer';
@@ -12,6 +12,7 @@ type D3Node = d3.HierarchyRectangularNode<TreemapNode> & { uid: string };
 
 const PALETTE = ['#EAFBDE', '#F9F0FF', '#F0F5FA', '#FFF0F6', '#FEFFE6', '#E6FFFB', '#FFF1F0', '#F5F5F5', '#E6F4FF', '#FCFFE6'];
 const DUR = 480;
+const MAX_EXPANSION = 4;
 
 export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -19,13 +20,15 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
     const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
     const [zoomUid, setZoomUid] = useState('root');
     const [breadcrumbs, setBreadcrumbs] = useState<{ uid: string; name: string }[]>([]);
+    const [expansion, setExpansion] = useState(1); // 1 = 100% height, 4 = 400% height
 
-    // Mutable refs so D3 handlers always read the latest values without stale closures
+    // Mutable refs so D3 handlers always read the latest values
     const zoomUidRef = useRef('root');
     const parentUidRef = useRef<string | null>(null);
     const onHoverRef = useRef(onStartupHover);
     const startupMapRef = useRef<Map<string, Startup>>(new Map());
     const colorScaleRef = useRef<d3.ScaleOrdinal<string, string>>(d3.scaleOrdinal<string>());
+    const isScrollingRef = useRef(false);
 
     useEffect(() => { onHoverRef.current = onStartupHover; }, [onStartupHover]);
     useEffect(() => { startupMapRef.current = new Map(startups.map(s => [s.id, s])); }, [startups]);
@@ -50,6 +53,27 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
         });
         ro.observe(target);
         return () => ro.disconnect();
+    }, []);
+
+    // Wheel event interceptor for vertical expansion
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        const scrollTop = containerRef.current?.scrollTop || 0;
+
+        if (e.deltaY > 0) {
+            // Scrolling down: Expand map if not maxed out
+            setExpansion(prev => {
+                const next = Math.min(prev + 0.15, MAX_EXPANSION);
+                if (next !== prev) isScrollingRef.current = true;
+                return next;
+            });
+        } else if (e.deltaY < 0 && scrollTop <= 10) {
+            // Scrolling up while at the top: Shrink map back
+            setExpansion(prev => {
+                const next = Math.max(prev - 0.15, 1);
+                if (next !== prev) isScrollingRef.current = true;
+                return next;
+            });
+        }
     }, []);
 
     // ─── Main D3 rendering effect ───────────────────────────────────────────────
@@ -77,19 +101,21 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
         while (cur) { crumbs.unshift({ uid: cur.uid, name: cur.data.name }); cur = cur.parent as D3Node | null; }
         setBreadcrumbs(crumbs);
 
-        // Compute layout on isolated subtree (avoids D3 depth>0 NaN bug)
+        // Compute layout on isolated subtree
         const subtree = activeFullNode.copy();
         subtree.sum(d => (!d.children?.length) ? Math.max(d.value || 0, 40) : 0);
 
+        const layoutHeight = dimensions.h * expansion;
+
         d3.treemap<TreemapNode>()
-            .size([dimensions.w, dimensions.h])
+            .size([dimensions.w, layoutHeight])
             .paddingOuter(0)
             .paddingTop(node => (node.depth > 0 && node.children) ? 24 : 0)
             .paddingInner(1)
             .round(false)
             .tile(d3.treemapSquarify)(subtree as d3.HierarchyRectangularNode<TreemapNode>);
 
-        // Restore UIDs on isolated copy from data._uid
+        // Restore UIDs on isolated copy
         const isoRoot = subtree as D3Node;
         isoRoot.each((node: any) => { node.uid = node.data._uid; });
 
@@ -142,10 +168,14 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
         const svg = d3.select(svgRef.current);
         const sel = svg.selectAll<SVGGElement, D3Node>('g.node').data(renderNodes, (d: D3Node) => d.uid);
 
-        // EXIT — fade out removed nodes
-        sel.exit().transition().duration(DUR / 2).style('opacity', 0).remove();
+        // Determine duration
+        const currentDur = isScrollingRef.current ? 0 : DUR;
+        isScrollingRef.current = false;
 
-        // ENTER — create skeleton at target coords (invisible)
+        // EXIT
+        sel.exit().transition().duration(currentDur / 2).style('opacity', 0).remove();
+
+        // ENTER
         const entered = sel.enter()
             .append('g').attr('class', 'node')
             .style('opacity', 0)
@@ -160,7 +190,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
         const merged = entered.merge(sel as any);
 
-        // Event handlers (always re-attach cleanly)
+        // Event handlers
         merged
             .style('cursor', (d: D3Node) => (!d.children ? 'crosshair' : 'pointer'))
             .on('click', function (event: MouseEvent, d: D3Node) {
@@ -187,28 +217,33 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                 onHoverRef.current(null);
             });
 
-        // Immediately set fill & stroke-opacity (no animation needed for color)
         merged.select('rect')
             .attr('fill', baseFill)
             .attr('stroke-opacity', (d: D3Node) => (!d.children ? '0.2' : '0.1'));
 
-        // Hide FO text during the position transition, show after
-        merged.selectAll('foreignObject').style('opacity', 0);
+        if (currentDur > 0) {
+            merged.selectAll('foreignObject').style('opacity', 0);
+        }
 
-        // TRANSITION — animate position + size
-        merged.transition().duration(DUR).ease(d3.easeCubicInOut)
+        // TRANSITION
+        merged.transition().duration(currentDur).ease(d3.easeCubicInOut)
             .style('opacity', 1)
             .attr('transform', (d: D3Node) => `translate(${d.x0},${d.y0})`)
             .on('end', function (d: D3Node) {
                 paintFO(this, d);
-                d3.select(this).selectAll('foreignObject').style('opacity', 1);
+                if (currentDur > 0) d3.select(this).selectAll('foreignObject').style('opacity', 1);
             });
 
-        merged.select('rect').transition().duration(DUR).ease(d3.easeCubicInOut)
+        if (currentDur === 0) {
+            merged.each(function (d) { paintFO(this, d); });
+            merged.selectAll('foreignObject').style('opacity', 1);
+        }
+
+        merged.select('rect').transition().duration(currentDur).ease(d3.easeCubicInOut)
             .attr('width', (d: D3Node) => Math.max(0, d.x1 - d.x0))
             .attr('height', (d: D3Node) => Math.max(0, d.y1 - d.y0));
 
-        // SVG background click → zoom out
+        // SVG background click
         svg.on('click.bg', (event: MouseEvent) => {
             if (event.target === svgRef.current && parentUidRef.current !== null) {
                 zoomUidRef.current = parentUidRef.current;
@@ -216,9 +251,9 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
             }
         });
 
-    }, [zoomUid, dimensions.w, dimensions.h, fullHierarchy, colorScale]);
+    }, [zoomUid, expansion, dimensions.w, dimensions.h, fullHierarchy, colorScale]);
 
-    // Skeleton while dimensions not yet known
+    // Skeleton
     if (!dimensions.w || !dimensions.h) {
         return (
             <div ref={containerRef} className="w-full h-full bg-white flex flex-col">
@@ -229,8 +264,10 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
     }
 
     return (
-        <div ref={containerRef} className="w-full h-full bg-white flex flex-col overflow-hidden relative font-mono text-[#333]">
-
+        <div
+            className="w-full h-full bg-white flex flex-col overflow-hidden relative font-mono text-[#333]"
+            onWheel={handleWheel}
+        >
             {/* Breadcrumb */}
             <div className="flex-shrink-0 h-10 border-b border-black/20 flex items-center px-6 bg-[#f8fafc] text-[11px] font-bold uppercase tracking-widest text-black/40 select-none z-10">
                 {breadcrumbs.map((crumb, i) => (
@@ -246,9 +283,17 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                 ))}
             </div>
 
-            {/* D3-managed SVG — children rendered entirely by D3, not React */}
-            <div className="flex-1 w-full relative map-container bg-[#fcfdfc]">
-                <svg ref={svgRef} width="100%" height="100%" className="w-full h-full block select-none" />
+            {/* Scrollable Map Container */}
+            <div
+                ref={containerRef}
+                className="flex-1 w-full overflow-y-auto overflow-x-hidden relative bg-[#fcfdfc] custom-scrollbar"
+            >
+                <svg
+                    ref={svgRef}
+                    width="100%"
+                    style={{ height: `${expansion * 100}%`, minHeight: '100%' }}
+                    className="w-full block select-none"
+                />
             </div>
         </div>
     );
