@@ -57,6 +57,9 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
     // Wheel event interceptor for vertical expansion
     const handleWheel = useCallback((e: React.WheelEvent) => {
+        // Only allow expansion/scrolling in the root view.
+        if (zoomUidRef.current !== 'root') return;
+
         const scrollTop = containerRef.current?.scrollTop || 0;
 
         if (e.deltaY > 0) {
@@ -202,6 +205,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                     ? (parentUidRef.current ?? 'root')
                     : d.uid;
                 zoomUidRef.current = target;
+                setExpansion(1);
                 setZoomUid(target);
             })
             .on('mouseenter', function (_ev: MouseEvent, d: D3Node) {
@@ -249,6 +253,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
         svg.on('click.bg', (event: MouseEvent) => {
             if (event.target === svgRef.current && parentUidRef.current !== null) {
                 zoomUidRef.current = parentUidRef.current;
+                setExpansion(1);
                 setZoomUid(parentUidRef.current);
             }
         });
@@ -276,7 +281,11 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
                     <React.Fragment key={crumb.uid}>
                         <span
                             className={`transition-colors ${i === breadcrumbs.length - 1 ? 'text-black font-black pointer-events-none' : 'cursor-pointer hover:text-black hover:underline'}`}
-                            onClick={() => { zoomUidRef.current = crumb.uid; setZoomUid(crumb.uid); }}
+                            onClick={() => {
+                                zoomUidRef.current = crumb.uid;
+                                setExpansion(1);
+                                setZoomUid(crumb.uid);
+                            }}
                         >
                             {crumb.name}
                         </span>
