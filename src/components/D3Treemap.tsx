@@ -10,7 +10,17 @@ interface D3TreemapProps {
 
 type D3Node = d3.HierarchyRectangularNode<TreemapNode> & { uid: string };
 
-const PALETTE = ['#EAFBDE', '#F9F0FF', '#F0F5FA', '#FFF0F6', '#FEFFE6', '#E6FFFB', '#FFF1F0', '#F5F5F5', '#E6F4FF', '#FCFFE6'];
+const SECTOR_COLORS: Record<string, string> = {
+    'Industrial Tech': '#EAFBDE',
+    'Standard Tech': '#F9F0FF',
+    'Mobility & Logistics': '#F0F5FA',
+    'Built World': '#FFF0F6',
+    'Creative Economy': '#FEFFE6',
+    'Health & Care': '#E6FFFB',
+    'Food & AgTech': '#FFF1F0',
+    'Social & Impact': '#F5F5F5'
+};
+const DEFAULT_COLOR = '#F9FAFB';
 const DUR = 480;
 const MAX_EXPANSION = 8;
 
@@ -27,7 +37,6 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
     const parentUidRef = useRef<string | null>(null);
     const onHoverRef = useRef(onStartupHover);
     const startupMapRef = useRef<Map<string, Startup>>(new Map());
-    const colorScaleRef = useRef<d3.ScaleOrdinal<string, string>>(d3.scaleOrdinal<string>());
     const isScrollingRef = useRef(false);
 
     useEffect(() => { onHoverRef.current = onStartupHover; }, [onStartupHover]);
@@ -35,12 +44,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
 
     const fullHierarchy = useMemo(() => transformStartupsToHierarchy(startups), [startups]);
 
-    const colorScale = useMemo(() => {
-        const sectors = fullHierarchy.children?.map(d => d.name) || [];
-        return d3.scaleOrdinal<string>().domain(sectors).range(PALETTE);
-    }, [fullHierarchy]);
-
-    useEffect(() => { colorScaleRef.current = colorScale; }, [colorScale]);
+    // No dynamic color scale needed anymore, using fixed mapping
 
     // Resize observer
     useEffect(() => {
@@ -128,7 +132,10 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
         const getSectorColor = (node: D3Node): string => {
             let n = node;
             while (n.depth > 1 && n.parent) n = n.parent as D3Node;
-            return n.depth === 1 ? colorScaleRef.current(n.data.name) : '#fcfdfc';
+            if (n.depth === 1) {
+                return SECTOR_COLORS[n.data.name] || DEFAULT_COLOR;
+            }
+            return DEFAULT_COLOR;
         };
 
         const baseFill = (d: D3Node) => {
@@ -258,7 +265,7 @@ export const D3Treemap: React.FC<D3TreemapProps> = ({ startups, onStartupHover }
             }
         });
 
-    }, [zoomUid, expansion, dimensions.w, dimensions.h, fullHierarchy, colorScale]);
+    }, [zoomUid, expansion, dimensions.w, dimensions.h, fullHierarchy]);
 
     // Skeleton
     if (!dimensions.w || !dimensions.h) {
