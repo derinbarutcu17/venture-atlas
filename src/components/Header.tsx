@@ -19,8 +19,8 @@ const MODES: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
 export const Header: React.FC<HeaderProps> = ({ currentMode, onModeChange }) => {
     return (
         <header className="fixed top-0 left-0 right-0 h-16 border-b border-border bg-background/90 backdrop-blur-sm z-50 flex items-center justify-between px-6">
-            <div className="flex items-center gap-4">
-                <div className="w-3 h-3 bg-accent-green" />
+            <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="Berlin Venture Atlas Logo" className="w-8 h-8 object-contain" />
                 <h1 className="text-xl font-bold tracking-tighter">BERLIN VENTURE ATLAS</h1>
             </div>
 
