@@ -80,10 +80,6 @@ export const Dashboard: React.FC = () => {
         });
     }, [startupsData, searchTerm]);
 
-    const totalVolume = useMemo(() => {
-        return filteredStartups.reduce((acc, s) => acc + s.funding, 0);
-    }, [filteredStartups]);
-
     return (
         <div className="h-screen w-screen bg-white text-black transition-colors duration-300 overflow-hidden flex flex-col font-mono selection:bg-black selection:text-white">
             {/* Header / Nav - Simplified No Black Bars */}
@@ -152,12 +148,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Status Bar - Simplified */}
-                <div className="absolute bottom-4 left-10 text-[9px] font-black uppercase tracking-widest text-black/30 pointer-events-none flex items-center space-x-6">
-                    <span className="flex items-center"><span className="w-1.5 h-1.5 bg-black rounded-full mr-2 animate-pulse"></span>System Active</span>
-                    <span>Total Vol: €{(totalVolume / 1000).toFixed(2)}B</span>
-                    <span>Lat: 52.5200° N, Lon: 13.4050° E</span>
-                </div>
+
             </main>
 
             <MouseOverlay

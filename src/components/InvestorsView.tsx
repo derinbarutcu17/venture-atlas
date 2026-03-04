@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, TrendingUp, Target, Briefcase, ExternalLink } from 'lucide-react';
 import type { Sector } from '../types';
 import logo from '/logo.png';
+
 
 interface InvestorData {
     name: string;
@@ -193,16 +194,24 @@ const StagePill: React.FC<{ stage: string }> = ({ stage }) => (
     <span className="inline-block text-[9px] font-black uppercase tracking-wider border border-black/20 px-2 py-0.5 mr-1 mb-1">{stage}</span>
 );
 
+const METHODOLOGY_TEXT = `Berlin Venture Atlas maps Berlin's startup ecosystem through a multi-source research process. Company data is cross-referenced against Crunchbase, PitchBook, EU-Startups, Sifted, and official press releases. Funding figures reflect EUR-converted totals at time of announcement. Sectors and verticals are assigned using a proprietary taxonomy aligned with European VC classification standards. The dataset covers ventures with at least one recorded funding round or significant media presence. Updates are conducted on a quarterly basis. All data is indicative and should be independently verified before investment decisions.`;
+
 export const InvestorsView: React.FC = () => {
     const [sortBy, setSortBy] = useState<SortKey>('aumValue');
     const [expandedInvestor, setExpandedInvestor] = useState<string | null>(null);
+    const [showMethodology, setShowMethodology] = useState(false);
+    const topRef = useRef<HTMLDivElement>(null);
 
     const sortedInvestors = useMemo(() => {
         return [...INVESTOR_DATA].sort((a, b) => b[sortBy] - a[sortBy]);
     }, [sortBy]);
 
+    const scrollToTop = () => {
+        topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     return (
-        <div className="w-full text-[#0a0a0a] font-mono select-none pt-8 pb-32">
+        <div ref={topRef} className="w-full text-[#0a0a0a] font-mono select-none pt-8 pb-32">
             {/* Header */}
             <header className="mb-12">
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between border-b-[3px] border-black pb-8 gap-4">
@@ -348,9 +357,9 @@ export const InvestorsView: React.FC = () => {
                                                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                                             <span className="text-[13px] font-bold text-black/65">{co.raised}</span>
                                                             <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-sm ${co.status === 'Unicorn' ? 'bg-black text-white' :
-                                                                    co.status === 'Public' ? 'bg-black/10 text-black/60' :
-                                                                        co.status === 'Exit' || co.status.startsWith('Exit') ? 'bg-black/5 text-black/35' :
-                                                                            'border border-black/20 text-black/50'
+                                                                co.status === 'Public' ? 'bg-black/10 text-black/60' :
+                                                                    co.status === 'Exit' || co.status.startsWith('Exit') ? 'bg-black/5 text-black/35' :
+                                                                        'border border-black/20 text-black/50'
                                                                 }`}>
                                                                 {co.status}
                                                             </span>
@@ -414,31 +423,63 @@ export const InvestorsView: React.FC = () => {
                 })}
             </div>
 
-            {/* Footer */}
-            <div className="mt-24 pt-10 border-t-[3px] border-black flex flex-col md:flex-row justify-between items-end gap-12">
+            {/* Footer — matches Companies page */}
+            <footer className="mt-24 pt-10 border-t-[3px] border-black flex flex-col md:flex-row justify-between items-end gap-12">
+                {/* Left: Branding */}
                 <div className="flex flex-col gap-4">
                     <img src={logo} alt="Logo" className="w-16 h-16 object-contain" />
                     <div>
-                        <div className="text-xl font-black uppercase leading-none tracking-tighter">Venture Intelligence Unit</div>
-                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mt-1">Validated Research // Berlin Q1 2026</div>
+                        <div className="text-xl font-black uppercase leading-none tracking-tighter">Berlin Venture Atlas</div>
+                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mt-1">Validated Research // Q1 2026</div>
                     </div>
-                    <div className="text-[9px] font-bold opacity-30 uppercase tracking-[0.1em] max-w-xs leading-relaxed">
+                    <div className="text-[9px] font-bold opacity-30 uppercase tracking-[0.1em] max-w-xs leading-relaxed normal-case font-mono">
                         Data sourced from PitchBook, Sifted, EU-Startups, TechCrunch Europe and fund disclosures. AUM figures represent latest known estimates.
                     </div>
                 </div>
-                <div className="flex gap-16 text-[10px] font-bold uppercase tracking-widest pb-1">
+
+                {/* Center: Links */}
+                <div className="flex gap-16 text-[10px] font-bold uppercase tracking-widest pb-1 font-mono">
                     <div className="flex flex-col gap-4">
-                        <span className="text-black/30">Research</span>
-                        <a href="#" className="hover:underline">Methodology</a>
-                        <a href="#" className="hover:underline">Data Sources</a>
+                        <span className="text-black">Research</span>
+                        {/* Methodology with hover tooltip */}
+                        <div className="relative">
+                            <span
+                                className="cursor-pointer hover:text-black/80 transition-colors text-black/60"
+                                onMouseEnter={() => setShowMethodology(true)}
+                                onMouseLeave={() => setShowMethodology(false)}
+                            >
+                                Methodology
+                            </span>
+                            {showMethodology && (
+                                <div className="absolute bottom-full left-0 mb-3 z-50 w-80 bg-white border border-black shadow-[4px_4px_0px_black] p-4 pointer-events-none font-mono">
+                                    <span className="text-[9px] font-black uppercase opacity-30 tracking-widest block mb-2">Research Methodology</span>
+                                    <p className="text-[10px] leading-relaxed text-black/80 font-medium normal-case tracking-normal">
+                                        {METHODOLOGY_TEXT}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-black/60">Data Sources</span>
                     </div>
+
                     <div className="flex flex-col gap-4">
-                        <span className="text-black/30">Access</span>
-                        <a href="#" className="hover:underline">Request Data</a>
-                        <a href="#" className="hover:underline">Partner Program</a>
+                        <span className="text-black">Connect</span>
+                        <a href="https://x.com/derinbarutcu_" target="_blank" rel="noopener noreferrer" className="text-black/60 hover:text-black transition-colors">Twitter / X</a>
                     </div>
                 </div>
-            </div>
+
+                {/* Right: Back to Top + Credit */}
+                <div className="flex flex-col items-end gap-4 pb-1 font-mono">
+                    <button
+                        onClick={scrollToTop}
+                        className="cursor-pointer hover:text-black transition-colors text-[11px] font-bold uppercase tracking-widest text-black/60"
+                    >
+                        Back to Top ↑
+                    </button>
+                    <span className="text-[9px] text-black/40 normal-case tracking-normal">Made by Derin ❤️</span>
+                </div>
+            </footer>
         </div>
     );
 };
+

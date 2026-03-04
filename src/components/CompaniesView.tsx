@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import type { Startup, Sector } from '../types';
 import logo from '/logo.png';
 
@@ -8,7 +8,6 @@ interface CompaniesViewProps {
     onStartupClick: (startup: Startup) => void;
 }
 
-// Grouping logic for the specific design layout
 interface VerticalData {
     name: string;
     count: number;
@@ -21,21 +20,23 @@ interface SectorData {
     verticals: VerticalData[];
 }
 
-// Pre-defined sector order based on the mockup grid
 const SECTOR_ORDER: Sector[] = [
-    'Standard Tech', // FinTech & Banking, Commerce & Retail
+    'Standard Tech',
     'Creative Economy',
     'Built World',
-    'Industrial Tech', // AI & Deep Tech
+    'Industrial Tech',
     'Food & AgTech',
     'Health & Care',
     'Mobility & Logistics',
     'Social & Impact'
 ];
 
+const METHODOLOGY_TEXT = `Berlin Venture Atlas maps Berlin's startup ecosystem through a multi-source research process. Company data is cross-referenced against Crunchbase, PitchBook, EU-Startups, Sifted, and official press releases. Funding figures reflect EUR-converted totals at time of announcement. Sectors and verticals are assigned using a proprietary taxonomy aligned with European VC classification standards. The dataset covers ventures with at least one recorded funding round or significant media presence. Updates are conducted on a quarterly basis. All data is indicative and should be independently verified before investment decisions.`;
+
 export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTerm, onStartupClick }) => {
-    // Accordion state: track which vertical is expanded. Format: "SectorName|VerticalName"
     const [expandedVertical, setExpandedVertical] = useState<string | null>(null);
+    const [showMethodology, setShowMethodology] = useState(false);
+    const topRef = useRef<HTMLDivElement>(null);
 
     const groupedData = useMemo(() => {
         const filtered = startups.filter(s => {
@@ -48,7 +49,6 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
 
         const sectorMap = new Map<Sector, SectorData>();
 
-        // Initialize map with all sectors to ensure grid is stable
         SECTOR_ORDER.forEach(sector => {
             sectorMap.set(sector, { name: sector, count: 0, verticals: [] });
         });
@@ -56,13 +56,10 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
         filtered.forEach(s => {
             let sectorGroup = sectorMap.get(s.sector);
             if (!sectorGroup) {
-                // Fallback for sectors not in SECTOR_ORDER (shouldn't happen with our typed data)
                 sectorGroup = { name: s.sector, count: 0, verticals: [] };
                 sectorMap.set(s.sector, sectorGroup);
             }
-
             sectorGroup.count++;
-
             let verticalGroup = sectorGroup.verticals.find(v => v.name === s.vertical);
             if (!verticalGroup) {
                 verticalGroup = { name: s.vertical, count: 0, startups: [] };
@@ -72,10 +69,8 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
             verticalGroup.startups.push(s);
         });
 
-        // Sort verticals within sectors by count descending
         sectorMap.forEach(group => {
             group.verticals.sort((a, b) => b.count - a.count);
-            // Sort startups alphabetically
             group.verticals.forEach(v => v.startups.sort((a, b) => a.name.localeCompare(b.name)));
         });
 
@@ -86,8 +81,12 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
         setExpandedVertical(prev => prev === id ? null : id);
     };
 
+    const scrollToTop = () => {
+        topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
     return (
-        <div className="w-full min-h-full bg-[#f8fafc] text-[#0a0a0a] font-mono flex flex-col pt-8 px-12 select-none">
+        <div ref={topRef} className="w-full min-h-full bg-[#f8fafc] text-[#0a0a0a] font-mono flex flex-col pt-8 px-12 select-none">
 
             {/* Header Section */}
             <header className="mb-10 flex-shrink-0">
@@ -96,29 +95,25 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
                 </h1>
             </header>
 
-            {/* Main Typographic Grid (Masonry Smart Layout) */}
+            {/* Main Typographic Grid */}
             <div className="w-full columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-x-12 pb-24">
                 {groupedData.map((sector, index) => {
                     const idx = (index + 1).toString().padStart(2, '0');
                     return (
                         <div key={sector.name} className="flex flex-col relative break-inside-avoid mb-12">
-                            {/* Sector Number & Line Indicator */}
                             <div className="flex items-center space-x-3 mb-2 opacity-50">
-                                <span className={`h-0.5 w-6 bg-black`}></span>
+                                <span className="h-0.5 w-6 bg-black"></span>
                                 <span className="text-[10px] font-bold tracking-widest uppercase">Sector {idx}</span>
                             </div>
 
-                            {/* Sector Name */}
                             <h2 className="text-2xl font-black uppercase tracking-tight leading-tight mb-2 h-14">
                                 {sector.name}
                             </h2>
 
-                            {/* Total Count */}
                             <div className="text-[5.5rem] leading-none font-black tracking-tighter mb-8 tabular-nums">
                                 {sector.count.toString().padStart(3, '0')}
                             </div>
 
-                            {/* Verticals List / Accordions */}
                             <div className="flex flex-col space-y-3 w-full border-t border-black/10 pt-4 relative z-10">
                                 {sector.verticals.map(vertical => {
                                     const vId = `${sector.name}|${vertical.name}`;
@@ -126,7 +121,6 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
 
                                     return (
                                         <div key={vertical.name} className="flex flex-col text-sm font-bold uppercase tracking-widest">
-                                            {/* Vertical Header - Clickable */}
                                             <div
                                                 className="flex justify-between items-center w-full cursor-pointer hover:bg-black/5 p-1 -mx-1 transition-colors"
                                                 onClick={() => toggleVertical(vId)}
@@ -135,7 +129,6 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
                                                 <span className="tabular-nums font-black">{vertical.count.toString().padStart(2, '0')}</span>
                                             </div>
 
-                                            {/* Accordion Content (Startups) */}
                                             {isExpanded && (
                                                 <div className="mt-2 mb-4 pl-3 border-l-2 border-black/10 flex flex-col space-y-2 overflow-y-auto max-h-[300px] custom-scrollbar">
                                                     {vertical.startups.map(s => (
@@ -147,7 +140,9 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
                                                             }}
                                                         >
                                                             <span className="truncate pr-4">{s.name}</span>
-                                                            <span className="tabular-nums opacity-60 font-bold whitespace-nowrap">€{s.funding >= 1000 ? (s.funding / 1000).toFixed(1) + 'B' : s.funding + 'M'}</span>
+                                                            <span className="tabular-nums opacity-60 font-bold whitespace-nowrap">
+                                                                €{s.funding >= 1000 ? (s.funding / 1000).toFixed(1) + 'B' : s.funding + 'M'}
+                                                            </span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -161,35 +156,60 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({ startups, searchTe
                 })}
             </div>
 
-            {/* Brutalist Footer */}
-            <footer className="w-full flex justify-between items-end pb-8 pt-6 border-t border-black/10 uppercase text-[11px] font-bold tracking-widest text-[#0a0a0a]/60 bg-[#f8fafc] mt-auto">
-                <div className="flex flex-col space-y-4">
-                    <img src={logo} alt="Logo" className="w-10 h-10 object-contain" />
-                    <div className="flex flex-col space-y-1.5">
-                        <span>© 2026 Berlin Venture Atlas.</span>
-                        <span>All rights reserved.</span>
-                        <span>Made in Kreuzberg.</span>
+            {/* Footer */}
+            <footer className="w-full flex justify-between items-end pb-8 pt-10 border-t-[3px] border-black uppercase text-[11px] font-bold tracking-widest text-[#0a0a0a]/60 bg-[#f8fafc] mt-auto gap-12">
+                {/* Left: Branding */}
+                <div className="flex flex-col gap-4">
+                    <img src={logo} alt="Logo" className="w-16 h-16 object-contain" />
+                    <div>
+                        <div className="text-xl font-black uppercase leading-none tracking-tighter text-[#0a0a0a]">Berlin Venture Atlas</div>
+                        <div className="text-[10px] font-bold opacity-40 uppercase tracking-[0.2em] mt-1">Validated Research // Q1 2026</div>
+                    </div>
+                    <div className="text-[9px] font-bold opacity-30 uppercase tracking-[0.1em] max-w-xs leading-relaxed normal-case">
+                        Data sourced from PitchBook, Sifted, EU-Startups, TechCrunch Europe and fund disclosures.
                     </div>
                 </div>
 
-                <div className="flex space-x-32 pb-1">
-                    <div className="flex flex-col space-y-4">
-                        <span className="text-black mb-1">Database</span>
-                        <a href="#" className="hover:text-black transition-colors">Methodology</a>
-                        <a href="#" className="hover:text-black transition-colors">API Access</a>
-                        <a href="#" className="hover:text-black transition-colors">Contribute Data</a>
+                {/* Center: Links */}
+                <div className="flex gap-16 pb-1">
+                    <div className="flex flex-col gap-4">
+                        <span className="text-black">Research</span>
+                        {/* Methodology with hover tooltip */}
+                        <div className="relative">
+                            <span
+                                className="cursor-pointer hover:text-black transition-colors"
+                                onMouseEnter={() => setShowMethodology(true)}
+                                onMouseLeave={() => setShowMethodology(false)}
+                            >
+                                Methodology
+                            </span>
+                            {showMethodology && (
+                                <div className="absolute bottom-full left-0 mb-3 z-50 w-80 bg-white border border-black shadow-[4px_4px_0px_black] p-4 pointer-events-none">
+                                    <span className="text-[9px] font-black uppercase opacity-30 tracking-widest block mb-2">Research Methodology</span>
+                                    <p className="text-[10px] leading-relaxed text-black/80 font-medium normal-case tracking-normal">
+                                        {METHODOLOGY_TEXT}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        <a href="#" className="hover:text-black transition-colors">Data Sources</a>
                     </div>
 
-                    <div className="flex flex-col space-y-4">
-                        <span className="text-black mb-1">Connect</span>
-                        <a href="#" className="hover:text-black transition-colors">Twitter / X</a>
-                        <a href="#" className="hover:text-black transition-colors">LinkedIn</a>
-                        <a href="#" className="hover:text-black transition-colors">Substack</a>
+                    <div className="flex flex-col gap-4">
+                        <span className="text-black">Connect</span>
+                        <a href="https://x.com/derinbarutcu_" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors">Twitter / X</a>
                     </div>
                 </div>
 
-                <div className="pb-1 cursor-pointer hover:text-black transition-colors h-full flex flex-col justify-end">
-                    BACK TO TOP
+                {/* Right: Back to Top + Credit */}
+                <div className="flex flex-col items-end gap-4 pb-1">
+                    <button
+                        onClick={scrollToTop}
+                        className="cursor-pointer hover:text-black transition-colors text-[11px] font-bold uppercase tracking-widest"
+                    >
+                        Back to Top ↑
+                    </button>
+                    <span className="text-[9px] opacity-50 normal-case tracking-normal">Made by Derin ❤️</span>
                 </div>
             </footer>
         </div>
